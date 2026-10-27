@@ -1,0 +1,8 @@
+{
+  "name": "Remix 3PLE A — Fintech, VTU, Travel, Retail \u0026 Estate",
+  "description": "Complete fintech, VTU, bill payments, flight booking, education fees, retailer reseller, and estate management platform based in Kano, Nigeria.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

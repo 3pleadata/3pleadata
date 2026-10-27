@@ -1,0 +1,826 @@
+import {
+  AirtimeNetwork,
+  ApiResellerKey,
+  CableTvPackage,
+  DataPlan,
+  EducationItem,
+  ElectricityDisco,
+  FlightBooking,
+  FlightOffer,
+  LedgerEntry,
+  NotificationItem,
+  PropertyInquiry,
+  PropertyListing,
+  ServiceProvider,
+  SupportTicket,
+  Transaction,
+  User,
+  UserRole,
+  PriceAlert,
+  ScheduledPayment,
+} from '../types';
+import { INITIAL_PROVIDERS } from './providers';
+
+import { DoubleEntryLedgerEngine } from './ledger';
+
+const STORAGE_KEY = '3plea_platform_data_v1';
+
+export const INITIAL_NETWORKS: AirtimeNetwork[] = [
+  {
+    id: 'net_mtn',
+    name: 'MTN Nigeria',
+    code: 'MTN',
+    logoColor: '#FFCC00',
+    bgColor: 'bg-amber-400',
+    discountPercentage: 2.0,
+    retailerDiscountPercentage: 3.5,
+    status: 'active',
+    minAmount: 50,
+    maxAmount: 50000,
+  },
+  {
+    id: 'net_airtel',
+    name: 'Airtel Nigeria',
+    code: 'AIRTEL',
+    logoColor: '#E60000',
+    bgColor: 'bg-red-600',
+    discountPercentage: 2.5,
+    retailerDiscountPercentage: 4.0,
+    status: 'active',
+    minAmount: 50,
+    maxAmount: 50000,
+  },
+  {
+    id: 'net_glo',
+    name: 'Glo Mobile',
+    code: 'GLO',
+    logoColor: '#28A745',
+    bgColor: 'bg-emerald-600',
+    discountPercentage: 3.0,
+    retailerDiscountPercentage: 5.0,
+    status: 'active',
+    minAmount: 50,
+    maxAmount: 50000,
+  },
+  {
+    id: 'net_9mobile',
+    name: '9mobile (Etisalat)',
+    code: '9MOBILE',
+    logoColor: '#006600',
+    bgColor: 'bg-lime-700',
+    discountPercentage: 3.0,
+    retailerDiscountPercentage: 5.5,
+    status: 'active',
+    minAmount: 50,
+    maxAmount: 50000,
+  },
+];
+
+export const INITIAL_DATA_PLANS: DataPlan[] = [
+  // MTN Plans
+  { id: 'dp_mtn_1', network: 'MTN', planType: 'SME', name: 'MTN SME 1GB', size: '1GB', validity: '30 Days', customerPrice: 280, retailerPrice: 255, providerCost: 245, active: true },
+  { id: 'dp_mtn_2', network: 'MTN', planType: 'SME', name: 'MTN SME 2GB', size: '2GB', validity: '30 Days', customerPrice: 560, retailerPrice: 510, providerCost: 490, active: true },
+  { id: 'dp_mtn_3', network: 'MTN', planType: 'SME', name: 'MTN SME 5GB', size: '5GB', validity: '30 Days', customerPrice: 1400, retailerPrice: 1275, providerCost: 1225, active: true },
+  { id: 'dp_mtn_4', network: 'MTN', planType: 'Corporate Gifting', name: 'MTN CG 10GB', size: '10GB', validity: '30 Days', customerPrice: 2900, retailerPrice: 2650, providerCost: 2550, active: true },
+  { id: 'dp_mtn_5', network: 'MTN', planType: 'Direct / Gifting', name: 'MTN Monthly 20GB', size: '20GB', validity: '30 Days', customerPrice: 5500, retailerPrice: 5200, providerCost: 5000, active: true },
+
+  // Airtel Plans
+  { id: 'dp_airtel_1', network: 'AIRTEL', planType: 'Corporate Gifting', name: 'Airtel CG 1GB', size: '1GB', validity: '30 Days', customerPrice: 290, retailerPrice: 260, providerCost: 250, active: true },
+  { id: 'dp_airtel_2', network: 'AIRTEL', planType: 'Corporate Gifting', name: 'Airtel CG 2GB', size: '2GB', validity: '30 Days', customerPrice: 580, retailerPrice: 520, providerCost: 500, active: true },
+  { id: 'dp_airtel_3', network: 'AIRTEL', planType: 'Corporate Gifting', name: 'Airtel CG 5GB', size: '5GB', validity: '30 Days', customerPrice: 1450, retailerPrice: 1300, providerCost: 1250, active: true },
+  { id: 'dp_airtel_4', network: 'AIRTEL', planType: 'Direct / Gifting', name: 'Airtel Direct 15GB', size: '15GB', validity: '30 Days', customerPrice: 4200, retailerPrice: 3950, providerCost: 3800, active: true },
+
+  // Glo Plans
+  { id: 'dp_glo_1', network: 'GLO', planType: 'Corporate Gifting', name: 'Glo CG 1GB', size: '1GB', validity: '30 Days', customerPrice: 270, retailerPrice: 245, providerCost: 235, active: true },
+  { id: 'dp_glo_2', network: 'GLO', planType: 'Corporate Gifting', name: 'Glo CG 3GB', size: '3GB', validity: '30 Days', customerPrice: 790, retailerPrice: 720, providerCost: 690, active: true },
+  { id: 'dp_glo_3', network: 'GLO', planType: 'Direct / Gifting', name: 'Glo Direct 7.2GB', size: '7.2GB', validity: '30 Days', customerPrice: 1900, retailerPrice: 1750, providerCost: 1680, active: true },
+
+  // 9mobile Plans
+  { id: 'dp_9mob_1', network: '9MOBILE', planType: 'SME', name: '9mobile SME 1.5GB', size: '1.5GB', validity: '30 Days', customerPrice: 350, retailerPrice: 300, providerCost: 285, active: true },
+  { id: 'dp_9mob_2', network: '9MOBILE', planType: 'Corporate Gifting', name: '9mobile CG 4.5GB', size: '4.5GB', validity: '30 Days', customerPrice: 950, retailerPrice: 850, providerCost: 810, active: true },
+];
+
+export const INITIAL_DISCOS: ElectricityDisco[] = [
+  { id: 'disco_kedco', name: 'Kano Electricity (KEDCO)', code: 'KEDCO', state: 'Kano, Katsina, Jigawa', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_ekedc', name: 'Eko Electricity (EKEDC)', code: 'EKEDC', state: 'Lagos South', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_ikedc', name: 'Ikeja Electric (IKEDC)', code: 'IKEDC', state: 'Lagos North', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_aedc', name: 'Abuja Electricity (AEDC)', code: 'AEDC', state: 'FCT Abuja, Niger, Kogi, Nasarawa', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_ibedc', name: 'Ibadan Electricity (IBEDC)', code: 'IBEDC', state: 'Oyo, Ogun, Osun, Kwara', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_phed', name: 'Port Harcourt (PHED)', code: 'PHED', state: 'Rivers, Bayelsa, Cross River, Akwa Ibom', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+  { id: 'disco_kaedco', name: 'Kaduna Electric (KAEDCO)', code: 'KAEDCO', state: 'Kaduna, Sokoto, Kebbi, Zamfara', convenienceFee: 100, logo: '⚡', supportsPrepaid: true, supportsPostpaid: true, active: true },
+];
+
+export const INITIAL_CABLE_PACKAGES: CableTvPackage[] = [
+  { id: 'cb_dstv_1', provider: 'DSTV', name: 'DSTV Padi', code: 'dstv-padi', price: 4400, channels: 45 },
+  { id: 'cb_dstv_2', provider: 'DSTV', name: 'DSTV Yanga', code: 'dstv-yanga', price: 6000, channels: 85 },
+  { id: 'cb_dstv_3', provider: 'DSTV', name: 'DSTV Confam', code: 'dstv-confam', price: 11000, channels: 105 },
+  { id: 'cb_dstv_4', provider: 'DSTV', name: 'DSTV Compact', code: 'dstv-compact', price: 19000, channels: 130 },
+  { id: 'cb_dstv_5', provider: 'DSTV', name: 'DSTV Premium', code: 'dstv-premium', price: 37000, channels: 165 },
+
+  { id: 'cb_gotv_1', provider: 'GOTV', name: 'GOtv Smallie', code: 'gotv-smallie', price: 1900, channels: 35 },
+  { id: 'cb_gotv_2', provider: 'GOTV', name: 'GOtv Jinja', code: 'gotv-jinja', price: 3900, channels: 45 },
+  { id: 'cb_gotv_3', provider: 'GOTV', name: 'GOtv Jolli', code: 'gotv-jolli', price: 5800, channels: 65 },
+  { id: 'cb_gotv_4', provider: 'GOTV', name: 'GOtv Max', code: 'gotv-max', price: 8500, channels: 75 },
+  { id: 'cb_gotv_5', provider: 'GOTV', name: 'GOtv Supa Plus', code: 'gotv-supa-plus', price: 16800, channels: 85 },
+
+  { id: 'cb_star_1', provider: 'STARTIMES', name: 'Startimes Nova', code: 'startimes-nova', price: 1900, channels: 40 },
+  { id: 'cb_star_2', provider: 'STARTIMES', name: 'Startimes Basic', code: 'startimes-basic', price: 3700, channels: 60 },
+  { id: 'cb_star_3', provider: 'STARTIMES', name: 'Startimes Classic', code: 'startimes-classic', price: 6000, channels: 80 },
+];
+
+export const INITIAL_EDUCATION: EducationItem[] = [
+  { id: 'edu_buk', category: 'university', name: 'Bayero University Kano (BUK)', shortCode: 'BUK', state: 'Kano', feeName: 'Undergraduate Registration / Acceptance Fee', amount: 95000, serviceCharge: 500, logoText: 'BUK', active: true },
+  { id: 'edu_kanopoly', category: 'polytechnic', name: 'Kano State Polytechnic', shortCode: 'KANOPOLY', state: 'Kano', feeName: 'ND / HND Semester Tuition Fees', amount: 55000, serviceCharge: 400, logoText: 'KNP', active: true },
+  { id: 'edu_saadatu', category: 'university', name: 'Sa’adatu Rimi University of Education', shortCode: 'SRUE', state: 'Kano (Kumbotso)', feeName: 'Degree & NCE Session Fees', amount: 48000, serviceCharge: 350, logoText: 'SRU', active: true },
+  { id: 'edu_ymsu', category: 'university', name: 'Yusuf Maitama Sule University (NWU Kano)', shortCode: 'YMSUK', state: 'Kano', feeName: 'Tuition & Faculty Dues', amount: 72000, serviceCharge: 450, logoText: 'YMS', active: true },
+  { id: 'edu_waec', category: 'exam_pin', name: 'WAEC Result Checker PIN (5 Usages)', shortCode: 'WAEC-PIN', state: 'National', feeName: 'Result Checking Token', amount: 4200, serviceCharge: 150, logoText: 'WAEC', active: true },
+  { id: 'edu_jamb', category: 'exam_pin', name: 'JAMB UTME / Direct Entry e-PIN', shortCode: 'JAMB-PIN', state: 'National', feeName: 'Registration Profile PIN', amount: 7700, serviceCharge: 200, logoText: 'JAMB', active: true },
+  { id: 'edu_neco', category: 'exam_pin', name: 'NECO Examination Result Token', shortCode: 'NECO-PIN', state: 'National', feeName: 'Result Verification Token', amount: 1650, serviceCharge: 100, logoText: 'NECO', active: true },
+];
+
+export const INITIAL_FLIGHTS: FlightOffer[] = [
+  {
+    id: 'flt_kan_abv_1',
+    airline: 'Air Peace',
+    flightNumber: 'P4-7124',
+    origin: 'KAN',
+    originCity: 'Kano (Mallam Aminu Kano Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '08:30 AM',
+    arrivalTime: '09:25 AM',
+    duration: '55m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Refundable with ₦15,000 airline penalty. Date change allowed.',
+    baseFare: 92000,
+    taxes: 8500,
+    totalPrice: 100500,
+    availableSeats: 7,
+  },
+  {
+    id: 'flt_kan_los_1',
+    airline: 'Max Air',
+    flightNumber: 'VM-1602',
+    origin: 'KAN',
+    originCity: 'Kano (Mallam Aminu Kano Intl)',
+    destination: 'LOS',
+    destinationCity: 'Lagos (Murtala Muhammed Intl)',
+    departureTime: '11:15 AM',
+    arrivalTime: '12:40 PM',
+    duration: '1h 25m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '23kg Checked + 7kg Cabin',
+    fareRules: 'Non-refundable within 24h of departure. Name change not permitted.',
+    baseFare: 115000,
+    taxes: 9500,
+    totalPrice: 124500,
+    availableSeats: 4,
+  },
+  {
+    id: 'flt_abv_kan_1',
+    airline: 'Ibom Air',
+    flightNumber: 'QI-0504',
+    origin: 'ABV',
+    originCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    destination: 'KAN',
+    destinationCity: 'Kano (Mallam Aminu Kano Intl)',
+    departureTime: '02:00 PM',
+    arrivalTime: '02:55 PM',
+    duration: '55m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Refundable with standard policy. Seat selection complimentary.',
+    baseFare: 89000,
+    taxes: 7800,
+    totalPrice: 96800,
+    availableSeats: 12,
+  },
+  {
+    id: 'flt_los_kan_1',
+    airline: 'United Nigeria',
+    flightNumber: 'UN-508',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'KAN',
+    destinationCity: 'Kano (Mallam Aminu Kano Intl)',
+    departureTime: '04:45 PM',
+    arrivalTime: '06:10 PM',
+    duration: '1h 25m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Ticket valid for 12 months. Standard reschedule fees apply.',
+    baseFare: 110000,
+    taxes: 9200,
+    totalPrice: 119200,
+    availableSeats: 9,
+  },
+];
+
+export const INITIAL_PROPERTIES: PropertyListing[] = [
+  {
+    id: 'prop_kano_tarauni_1',
+    title: 'Luxury 4-Bedroom Contemporary Duplex with BQ',
+    description: 'Masterfully built 4-bedroom detached duplex with boys quarters, perimeter electric fence, security gatehouse, interlocking driveway, borehole water treatment plant, and marble finishing located directly in the serene and secure Tarauni residential neighborhood.',
+    category: 'residential',
+    transactionType: 'sale',
+    location: 'Karkasara / Tarauni District',
+    city: 'Kano City',
+    state: 'Kano State',
+    price: 135000000,
+    currency: 'NGN',
+    bedrooms: 4,
+    bathrooms: 5,
+    toilets: 5,
+    sizeSqm: 650,
+    verified: true,
+    featured: true,
+    status: 'available',
+    imageUrl: '/src/assets/images/kano_tarauni_duplex_1793031985230.jpg',
+    agentName: 'Engr. Kabiru Tarauni (3PLE A Estates)',
+    agentPhone: '+234 803 000 3PLE',
+    agentEmail: 'properties@3plea.ng',
+    createdAt: '2026-03-10T10:00:00Z',
+  },
+  {
+    id: 'prop_abuja_luxury_1',
+    title: 'The Horizon: Premium 3-Bedroom Serviced Apartment',
+    description: 'High-end architectural masterpiece featuring floor-to-ceiling soundproof glass, infinity swimming pool, automated smart home access, 24/7 dedicated standby power generator, and scenic panoramic views.',
+    category: 'apartment',
+    transactionType: 'sale',
+    location: 'Guzape Diplomatic Zone',
+    city: 'Abuja FCT',
+    state: 'Federal Capital Territory',
+    price: 185000000,
+    currency: 'NGN',
+    bedrooms: 3,
+    bathrooms: 4,
+    toilets: 4,
+    sizeSqm: 380,
+    verified: true,
+    featured: true,
+    status: 'available',
+    imageUrl: '/src/assets/images/abuja_luxury_apartments_1793031986068.jpg',
+    agentName: 'Amina Sani (3PLE A Estates FCT)',
+    agentPhone: '+234 802 111 3PLE',
+    agentEmail: 'abuja.estates@3plea.ng',
+    createdAt: '2026-03-12T14:30:00Z',
+  },
+  {
+    id: 'prop_kano_commercial_1',
+    title: 'A-Kano Commercial Plaza & Retail Corporate Space',
+    description: 'Grade-A commercial office suites and ground-floor banking hall / retail shopping complex with 60-car dedicated parking capacity, passenger elevators, central HVAC cooling, and high commercial foot-traffic.',
+    category: 'commercial',
+    transactionType: 'lease',
+    location: 'Nassarawa GRA Commercial Corridor',
+    city: 'Kano City',
+    state: 'Kano State',
+    price: 8500000,
+    currency: 'NGN',
+    sizeSqm: 240,
+    verified: true,
+    featured: false,
+    status: 'available',
+    imageUrl: '/src/assets/images/kano_commercial_plaza_1793031986818.jpg',
+    agentName: 'Alhaji Bashir Umar',
+    agentPhone: '+234 805 777 3PLE',
+    agentEmail: 'commercial@3plea.ng',
+    createdAt: '2026-03-15T09:15:00Z',
+  },
+];
+
+export const INITIAL_USER: User = {
+  id: 'usr_3plea_demo_01',
+  name: 'Aliyu Mohammed Kano',
+  email: '3pleadata@gmail.com',
+  phone: '+234 803 123 4567',
+  role: 'super_admin',
+  walletBalance: 450000,
+  bonusBalance: 5200,
+  commissionBalance: 34500,
+  kycLevel: 3,
+  bvnVerified: true,
+  ninVerified: true,
+  apiKey: '3plea_live_99f8c47b9201a4e76d338',
+  apiWebhookUrl: 'https://webhook.site/demo-3plea',
+  twoFactorEnabled: true,
+  transactionPinSet: true,
+  status: 'active',
+  createdAt: '2026-01-15T08:00:00Z',
+};
+
+export const INITIAL_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx_3pa_1001',
+    reference: '3PA-20260320-9841',
+    idempotencyKey: 'idem_9841_funding',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'wallet_funding',
+    amount: 150000,
+    fee: 0,
+    discount: 0,
+    totalDebited: 150000,
+    status: 'successful',
+    provider: 'Paystack Gateway',
+    providerReference: 'PSTK_TX_839104',
+    productName: 'Bank Card Wallet Top-up',
+    recipient: 'Self (Wallet NGN)',
+    metadata: { channel: 'Mastercard 5399••••3341', gateway: 'paystack' },
+    createdAt: '2026-03-24T14:32:00Z',
+    completedAt: '2026-03-24T14:32:04Z',
+  },
+  {
+    id: 'tx_3pa_1002',
+    reference: '3PA-20260324-4412',
+    idempotencyKey: 'idem_4412_airtime',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'airtime',
+    amount: 5000,
+    fee: 0,
+    discount: 100, // 2% discount
+    totalDebited: 4900,
+    status: 'successful',
+    provider: 'Pairgate API',
+    providerReference: 'PAIRGATE_TX_55102',
+    productName: 'MTN Airtime VTU ₦5,000',
+    recipient: '08031234567',
+    metadata: { operator: 'MTN', discountPct: 2 },
+    createdAt: '2026-03-24T15:10:00Z',
+    completedAt: '2026-03-24T15:10:03Z',
+  },
+  {
+    id: 'tx_3pa_1003',
+    reference: '3PA-20260325-7781',
+    idempotencyKey: 'idem_7781_data',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'data',
+    amount: 1400,
+    fee: 0,
+    discount: 50,
+    totalDebited: 1350,
+    status: 'successful',
+    provider: 'ClubKonnect VTU',
+    providerReference: 'CK_DATA_99812',
+    productName: 'MTN SME Data 5GB (30 Days)',
+    recipient: '08149876543',
+    metadata: { size: '5GB', validity: '30 Days' },
+    createdAt: '2026-03-25T09:20:00Z',
+    completedAt: '2026-03-25T09:20:04Z',
+  },
+  {
+    id: 'tx_3pa_1004',
+    reference: '3PA-20260325-1109',
+    idempotencyKey: 'idem_1109_electricity',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'electricity',
+    amount: 10000,
+    fee: 100,
+    discount: 0,
+    totalDebited: 10100,
+    status: 'successful',
+    provider: 'Pairgate API',
+    providerReference: 'PAIRGATE_KEDCO_4401',
+    productName: 'Kano Electricity (KEDCO) Prepaid',
+    recipient: '04192847562',
+    metadata: {
+      disco: 'KEDCO',
+      meterNumber: '04192847562',
+      customerName: 'ALHAJI MUSA SULAIMAN - TARAUNI KANO',
+      token: '4928-1193-8472-0021',
+      units: '44.4 kWh',
+    },
+    createdAt: '2026-03-25T11:45:00Z',
+    completedAt: '2026-03-25T11:45:06Z',
+  },
+];
+
+export const INITIAL_UNCATEGORIZED_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx_3pa_uncat_101',
+    reference: '3PA-POS-20260325-8812',
+    idempotencyKey: 'idem_uncat_8812',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'uncategorized',
+    category: 'Uncategorized',
+    isUncategorized: true,
+    amount: 15000,
+    fee: 100,
+    discount: 0,
+    totalDebited: 15100,
+    status: 'successful',
+    provider: 'Direct Agency POS',
+    providerReference: 'NIBSS_POS_992104',
+    productName: 'IBEDC PREPAID MTR 0419283720',
+    recipient: '0419283720',
+    metadata: {
+      narration: 'Agency POS direct recharge for IBEDC electricity meter',
+      terminalId: '2033KAN1',
+    },
+    createdAt: '2026-03-25T13:10:00Z',
+    completedAt: '2026-03-25T13:10:05Z',
+  },
+  {
+    id: 'tx_3pa_uncat_102',
+    reference: '3PA-VTU-20260325-4491',
+    idempotencyKey: 'idem_uncat_4491',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'uncategorized',
+    category: 'Uncategorized',
+    isUncategorized: true,
+    amount: 3000,
+    fee: 0,
+    discount: 0,
+    totalDebited: 3000,
+    status: 'successful',
+    provider: 'Interswitch WebPAY',
+    providerReference: 'ISW_TX_381920',
+    productName: 'AIRTIME AUTO RECHARGE MTN 08031234567',
+    recipient: '08031234567',
+    metadata: {
+      narration: 'Automated VTU airtime topup via card direct debit',
+      operator: 'MTN',
+    },
+    createdAt: '2026-03-25T14:45:00Z',
+    completedAt: '2026-03-25T14:45:02Z',
+  },
+  {
+    id: 'tx_3pa_uncat_103',
+    reference: '3PA-PAY-20260325-6672',
+    idempotencyKey: 'idem_uncat_6672',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'uncategorized',
+    category: 'Uncategorized',
+    isUncategorized: true,
+    amount: 19800,
+    fee: 0,
+    discount: 0,
+    totalDebited: 19800,
+    status: 'successful',
+    provider: 'Quickteller Paypoint',
+    providerReference: 'QT_PAY_771924',
+    productName: 'MULTICHOICE DSTV COMPACT PLUS',
+    recipient: 'IUC 4102938471',
+    metadata: {
+      narration: 'Pay TV Cable Subscription MultiChoice DSTV decoder renewal',
+      bouquet: 'Compact Plus',
+    },
+    createdAt: '2026-03-25T16:20:00Z',
+    completedAt: '2026-03-25T16:20:04Z',
+  },
+  {
+    id: 'tx_3pa_uncat_104',
+    reference: '3PA-REMITA-20260325-1102',
+    idempotencyKey: 'idem_uncat_1102',
+    userId: 'usr_3plea_demo_01',
+    userName: 'Aliyu Mohammed Kano',
+    userPhone: '+234 803 123 4567',
+    type: 'uncategorized',
+    category: 'Uncategorized',
+    isUncategorized: true,
+    amount: 95000,
+    fee: 500,
+    discount: 0,
+    totalDebited: 95500,
+    status: 'successful',
+    provider: 'Remita Central',
+    providerReference: 'RRR_9918237461',
+    productName: 'BUK UNDERGRAD ACCEPTANCE REGISTRATION',
+    recipient: 'BUK/UG/2026/9102',
+    metadata: {
+      narration: 'Bayero University Kano undergraduate school session registration fees',
+      institution: 'BUK',
+    },
+    createdAt: '2026-03-25T17:05:00Z',
+    completedAt: '2026-03-25T17:05:08Z',
+  },
+];
+
+// Combine standard and initial uncategorized transactions
+INITIAL_TRANSACTIONS.push(...INITIAL_UNCATEGORIZED_TRANSACTIONS);
+
+
+export const INITIAL_LEDGER: LedgerEntry[] = [
+  {
+    id: 'ldg_init_1',
+    transactionRef: '3PA-20260320-9841',
+    timestamp: '2026-03-24T14:32:00Z',
+    debitAccount: 'ASSET:BANK_PAYSTACK',
+    creditAccount: 'LIABILITY:CUSTOMER_WALLET',
+    amount: 150000,
+    currency: 'NGN',
+    narration: 'Wallet funding settlement via Paystack',
+  },
+  {
+    id: 'ldg_init_2',
+    transactionRef: '3PA-20260324-4412',
+    timestamp: '2026-03-24T15:10:00Z',
+    debitAccount: 'LIABILITY:CUSTOMER_WALLET',
+    creditAccount: 'ASSET:PROVIDER_ESCROW_VTU',
+    amount: 4900,
+    currency: 'NGN',
+    narration: 'Customer airtime purchase debit',
+  },
+  {
+    id: 'ldg_init_3',
+    transactionRef: '3PA-20260324-4412',
+    timestamp: '2026-03-24T15:10:00Z',
+    debitAccount: 'EXPENSE:PROMO_DISCOUNT',
+    creditAccount: 'LIABILITY:CUSTOMER_WALLET',
+    amount: 100,
+    currency: 'NGN',
+    narration: '2% Promotional Airtime discount absorbed',
+  },
+];
+
+export const INITIAL_PRICE_ALERTS: PriceAlert[] = [
+  {
+    id: 'alt_1',
+    userId: 'usr_kano_01',
+    category: 'data',
+    networkOrProvider: 'MTN',
+    planOrService: 'MTN SME 2GB',
+    targetMaxPrice: 500,
+    currentPrice: 560,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    notes: 'Alert me when 2GB drops to ₦500 or below',
+  },
+  {
+    id: 'alt_2',
+    userId: 'usr_kano_01',
+    category: 'electricity',
+    networkOrProvider: 'KEDCO',
+    planOrService: 'KEDCO Kano Prepaid Token',
+    targetMaxPrice: 10000,
+    currentPrice: 10000,
+    status: 'triggered',
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    notes: 'Auto-detect when ₦10k monthly power recharge fits discount rate',
+  },
+];
+
+export const INITIAL_SCHEDULED_PAYMENTS: ScheduledPayment[] = [
+  {
+    id: 'sch_1',
+    userId: 'usr_kano_01',
+    title: 'Monthly KEDCO Home Meter Recharge',
+    category: 'electricity',
+    provider: 'KEDCO',
+    recipient: '0428-9921-504',
+    amount: 15000,
+    frequency: 'monthly',
+    executionDay: 28,
+    executionTime: '08:00',
+    nextRunDate: new Date(Date.now() + 86400000 * 2).toISOString(),
+    lastRunDate: new Date(Date.now() - 86400000 * 28).toISOString(),
+    status: 'active',
+    autoDebitWallet: true,
+    totalExecutions: 3,
+    createdAt: '2026-01-15T10:00:00Z',
+    note: 'Primary home meter auto-token generation',
+  },
+  {
+    id: 'sch_2',
+    userId: 'usr_kano_01',
+    title: 'Weekly Aliyu MTN 5GB SME Data',
+    category: 'data',
+    provider: 'MTN',
+    recipient: '08031234567',
+    planCode: 'dp_mtn_3',
+    planName: 'MTN SME 5GB',
+    amount: 1400,
+    frequency: 'weekly',
+    executionDay: 1, // Monday
+    executionTime: '07:30',
+    nextRunDate: new Date(Date.now() + 86400000 * 1).toISOString(),
+    lastRunDate: new Date(Date.now() - 86400000 * 6).toISOString(),
+    status: 'active',
+    autoDebitWallet: true,
+    totalExecutions: 8,
+    createdAt: '2026-02-01T08:00:00Z',
+    note: 'Auto-renews every Monday morning',
+  },
+  {
+    id: 'sch_3',
+    userId: 'usr_kano_01',
+    title: 'MultiChoice DSTV Compact Bouquet',
+    category: 'cable_tv',
+    provider: 'DSTV',
+    recipient: 'IUC 4102938471',
+    planCode: 'cb_dstv_4',
+    planName: 'DSTV Compact (130 Channels)',
+    amount: 19000,
+    frequency: 'monthly',
+    executionDay: 15,
+    executionTime: '09:00',
+    nextRunDate: new Date(Date.now() + 86400000 * 5).toISOString(),
+    lastRunDate: new Date(Date.now() - 86400000 * 25).toISOString(),
+    status: 'active',
+    autoDebitWallet: true,
+    totalExecutions: 5,
+    createdAt: '2026-01-10T09:00:00Z',
+    note: 'Living room decoder subscription renewal',
+  },
+  {
+    id: 'sch_4',
+    userId: 'usr_kano_01',
+    title: 'Weekly Airtel Family Line Top-up',
+    category: 'airtime',
+    provider: 'AIRTEL',
+    recipient: '08021113344',
+    amount: 3000,
+    frequency: 'weekly',
+    executionDay: 5, // Friday
+    executionTime: '10:00',
+    nextRunDate: new Date(Date.now() + 86400000 * 4).toISOString(),
+    lastRunDate: new Date(Date.now() - 86400000 * 3).toISOString(),
+    status: 'active',
+    autoDebitWallet: true,
+    totalExecutions: 12,
+    createdAt: '2026-01-20T11:00:00Z',
+    note: 'Weekly family airtime subsidy',
+  },
+  {
+    id: 'sch_5',
+    userId: 'usr_kano_01',
+    title: 'Kano Commercial Plaza Standby Meter',
+    category: 'electricity',
+    provider: 'KEDCO',
+    recipient: '0419-8832-110',
+    amount: 25000,
+    frequency: 'monthly',
+    executionDay: 5,
+    executionTime: '06:00',
+    nextRunDate: new Date(Date.now() + 86400000 * 8).toISOString(),
+    lastRunDate: new Date(Date.now() - 86400000 * 22).toISOString(),
+    status: 'active',
+    autoDebitWallet: true,
+    totalExecutions: 4,
+    createdAt: '2026-01-05T08:00:00Z',
+    note: 'Commercial plaza office suite meter',
+  },
+];
+
+export interface AppState {
+  currentUser: User;
+  transactions: Transaction[];
+  ledger: LedgerEntry[];
+  providers: ServiceProvider[];
+  networks: AirtimeNetwork[];
+  dataPlans: DataPlan[];
+  discos: ElectricityDisco[];
+  cablePackages: CableTvPackage[];
+  educationItems: EducationItem[];
+  flights: FlightOffer[];
+  flightBookings: FlightBooking[];
+  properties: PropertyListing[];
+  inquiries: PropertyInquiry[];
+  notifications: NotificationItem[];
+  tickets: SupportTicket[];
+  apiKeys: ApiResellerKey[];
+  priceAlerts: PriceAlert[];
+  scheduledPayments: ScheduledPayment[];
+}
+
+export function loadAppState(): AppState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...parsed,
+        // Ensure new properties have image links
+        properties: parsed.properties || INITIAL_PROPERTIES,
+        providers: parsed.providers || INITIAL_PROVIDERS,
+        priceAlerts: parsed.priceAlerts || INITIAL_PRICE_ALERTS,
+        scheduledPayments:
+          parsed.scheduledPayments && parsed.scheduledPayments.length >= 3
+            ? parsed.scheduledPayments
+            : INITIAL_SCHEDULED_PAYMENTS,
+        transactions: (() => {
+          const txs = parsed.transactions || INITIAL_TRANSACTIONS;
+          const hasUncategorized = txs.some((t: Transaction) => t.isUncategorized || t.type === 'uncategorized');
+          if (!hasUncategorized) {
+            return [...INITIAL_UNCATEGORIZED_TRANSACTIONS, ...txs];
+          }
+          return txs;
+        })(),
+      };
+    }
+  } catch (e) {
+    console.error('Failed to load state from localStorage:', e);
+  }
+
+  const defaultState: AppState = {
+    currentUser: INITIAL_USER,
+    transactions: INITIAL_TRANSACTIONS,
+    ledger: INITIAL_LEDGER,
+    providers: INITIAL_PROVIDERS,
+    networks: INITIAL_NETWORKS,
+    dataPlans: INITIAL_DATA_PLANS,
+    discos: INITIAL_DISCOS,
+    cablePackages: INITIAL_CABLE_PACKAGES,
+    educationItems: INITIAL_EDUCATION,
+    flights: INITIAL_FLIGHTS,
+    flightBookings: [],
+    properties: INITIAL_PROPERTIES,
+    inquiries: [],
+    notifications: [
+      {
+        id: 'notif_1',
+        userId: INITIAL_USER.id,
+        title: 'Barka da zuwa 3PLE A Platform',
+        message: 'Your high-tier verified account is ready. Karkasara Road, Tarauni Kano operational.',
+        type: 'system',
+        read: false,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'notif_2',
+        userId: INITIAL_USER.id,
+        title: 'Wallet Funded Successfully',
+        message: '₦150,000 received via Paystack Channel. Ref: 3PA-20260320-9841',
+        type: 'transaction',
+        read: true,
+        createdAt: '2026-03-24T14:32:00Z',
+      },
+    ],
+    tickets: [
+      {
+        id: 'tkt_101',
+        ticketNumber: 'TKT-3PA-8821',
+        userId: INITIAL_USER.id,
+        userName: INITIAL_USER.name,
+        userEmail: INITIAL_USER.email,
+        subject: 'Inquiry regarding Kano KEDCO Prepaid Token Delay',
+        category: 'vtu',
+        priority: 'medium',
+        status: 'resolved',
+        createdAt: '2026-03-22T10:15:00Z',
+        messages: [
+          { sender: 'user', text: 'Good morning, does KEDCO token generation take more than 5 seconds during peak hours?', timestamp: '2026-03-22T10:15:00Z' },
+          { sender: 'support', text: 'Hello Aliyu! Our Pairgate integration delivers KEDCO tokens in an average of 1.4 seconds. Your token was generated instantly.', timestamp: '2026-03-22T10:20:00Z' },
+        ],
+      },
+    ],
+    apiKeys: [
+      {
+        id: 'apk_1',
+        userId: INITIAL_USER.id,
+        keyName: 'Production Reseller API Key',
+        prefix: '3plea_live_',
+        keyMasked: '3plea_live_••••••••••••9201',
+        environment: 'live',
+        rateLimitPerMin: 120,
+        totalRequests: 4892,
+        active: true,
+        createdAt: '2026-02-01T12:00:00Z',
+        lastUsedAt: '2026-03-25T11:45:00Z',
+      },
+      {
+        id: 'apk_2',
+        userId: INITIAL_USER.id,
+        keyName: 'Sandbox Test Key',
+        prefix: '3plea_test_',
+        keyMasked: '3plea_test_••••••••••••1104',
+        environment: 'sandbox',
+        rateLimitPerMin: 60,
+        totalRequests: 820,
+        active: true,
+        createdAt: '2026-02-15T09:30:00Z',
+        lastUsedAt: '2026-03-24T18:12:00Z',
+      },
+    ],
+    priceAlerts: INITIAL_PRICE_ALERTS,
+    scheduledPayments: INITIAL_SCHEDULED_PAYMENTS,
+  };
+
+  saveAppState(defaultState);
+  return defaultState;
+}
+
+export function saveAppState(state: AppState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save state to localStorage:', e);
+  }
+}
