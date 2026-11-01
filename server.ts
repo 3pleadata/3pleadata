@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import adminRouter from './server/admin';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,6 +12,15 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const trustProxyHops = process.env.TRUST_PROXY_HOPS;
+
+if (trustProxyHops) {
+  const parsedHops = Number(trustProxyHops);
+  if (!Number.isInteger(parsedHops) || parsedHops < 1) {
+    throw new Error('TRUST_PROXY_HOPS must be a positive integer when configured.');
+  }
+  app.set('trust proxy', parsedHops);
+}
 
 app.use(express.json());
 
@@ -23,10 +34,16 @@ const configuredCorsOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean)
 );
+const adminAppOrigin = process.env.ADMIN_APP_ORIGIN;
 
 app.use((req, res, next) => {
   const origin = req.get('Origin');
-  if (!origin || (!nativeAppOrigins.has(origin) && !configuredCorsOrigins.has(origin))) {
+  if (
+    !origin ||
+    (!nativeAppOrigins.has(origin) &&
+      !configuredCorsOrigins.has(origin) &&
+      origin !== adminAppOrigin)
+  ) {
     return next();
   }
 
@@ -34,6 +51,9 @@ app.use((req, res, next) => {
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (origin === adminAppOrigin) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -42,6 +62,8 @@ app.use((req, res, next) => {
 });
 
 // API v1 Routes
+app.use('/api/v1/admin', adminRouter);
+
 app.get('/api/v1/health', (req, res) => {
   res.json({
     status: 'online',
