@@ -13,6 +13,34 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
+const nativeAppOrigins = new Set([
+  'capacitor://localhost',
+  'https://localhost',
+]);
+const configuredCorsOrigins = new Set(
+  (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (!origin || (!nativeAppOrigins.has(origin) && !configuredCorsOrigins.has(origin))) {
+    return next();
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
+
 // API v1 Routes
 app.get('/api/v1/health', (req, res) => {
   res.json({

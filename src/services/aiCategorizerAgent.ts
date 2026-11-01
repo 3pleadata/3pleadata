@@ -215,7 +215,8 @@ export async function requestTransactionClassifications(
       metadata: t.metadata,
     }));
 
-    const response = await fetch('/api/v1/ai/categorize-transactions', {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || '/api/v1';
+    const response = await fetch(`${apiBaseUrl}/ai/categorize-transactions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "3plea-platform",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,12 +7,23 @@
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
     "build": "vite build",
+    "build:native": "vite build && cap sync",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cap:add": "cap add android && cap add ios",
+    "cap:assets": "capacitor-assets generate --ios --android --iconBackgroundColor=#061a2d --iconBackgroundColorDark=#061a2d --splashBackgroundColor=#061a2d --splashBackgroundColorDark=#061a2d",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "canvas-confetti": "^1.9.4",
@@ -33,7 +44,9 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
+    "@capacitor/assets": "^4.0.0",
+    "esbuild": "^0.28.0",
+    "@capacitor/cli": "^8.3.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"
