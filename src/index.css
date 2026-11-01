@@ -11,6 +11,15 @@
   body {
     font-family: var(--font-sans);
   }
+
+  .native-app body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .native-app .min-h-screen {
+    min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
   
   .font-mono, .tabular-nums {
     font-family: var(--font-mono);

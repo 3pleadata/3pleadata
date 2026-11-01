@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { App as NativeApp } from '@capacitor/app';
+import { Capacitor, PluginListenerHandle } from '@capacitor/core';
+import { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar';
 import { AppState, loadAppState, saveAppState } from './services/storage';
 import { Transaction, User, UserRole } from './types';
 import { Header } from './components/Header';
@@ -107,6 +110,79 @@ export default function App() {
   const [biometricTarget, setBiometricTarget] = useState<BiometricTarget | null>(null);
   const [pendingBiometricAction, setPendingBiometricAction] = useState<(() => void) | null>(null);
   const [, setBiometricTick] = useState<number>(0);
+
+  const nativeBackState = useRef({
+    activeTab,
+    sidebarOpen,
+    biometricTarget,
+    showAuthModal,
+    showFundModal,
+    selectedReceiptTx,
+  });
+  nativeBackState.current = {
+    activeTab,
+    sidebarOpen,
+    biometricTarget,
+    showAuthModal,
+    showFundModal,
+    selectedReceiptTx,
+  };
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let active = true;
+    let listener: PluginListenerHandle | undefined;
+    void NativeApp.addListener('backButton', () => {
+      const current = nativeBackState.current;
+      if (current.biometricTarget) {
+        setBiometricTarget(null);
+        setPendingBiometricAction(null);
+      } else if (current.showAuthModal) {
+        setShowAuthModal(false);
+      } else if (current.showFundModal) {
+        setShowFundModal(false);
+      } else if (current.selectedReceiptTx) {
+        setSelectedReceiptTx(null);
+      } else if (current.sidebarOpen) {
+        setSidebarOpen(false);
+      } else if (current.activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+      } else {
+        void NativeApp.exitApp();
+      }
+    }).then((registeredListener) => {
+      if (active) {
+        listener = registeredListener;
+      } else {
+        void registeredListener.remove();
+      }
+    });
+
+    return () => {
+      active = false;
+      void listener?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateStatusBar = () => {
+      const isDark = theme === 'dark' || (theme === 'system' && colorScheme.matches);
+      void StatusBar.setOverlaysWebView({ overlay: false });
+      void StatusBar.setStyle({
+        style: isDark ? StatusBarStyle.Light : StatusBarStyle.Dark,
+      });
+    };
+
+    updateStatusBar();
+    if (theme === 'system') {
+      colorScheme.addEventListener('change', updateStatusBar);
+      return () => colorScheme.removeEventListener('change', updateStatusBar);
+    }
+  }, [theme]);
 
   const isBiometricActive =
     isBiometricSessionValid('wallet_funding') || isBiometricSessionValid('admin_dashboard');
