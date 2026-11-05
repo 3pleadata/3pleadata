@@ -17,6 +17,7 @@ import {
   X,
   CreditCard,
   CalendarClock,
+  Scale,
 } from 'lucide-react';
 import { Language, t } from '../services/i18n';
 
@@ -100,6 +101,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: t('navSupport', language),
       icon: Headphones,
     },
+    {
+      id: 'legal',
+      label: t('navLegal', language),
+      icon: Scale,
+    },
   ];
 
   if (currentUser.role === 'administrator' || currentUser.role === 'super_admin') {
@@ -145,9 +151,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
             <div>
               <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white block leading-tight">
-                3PLE A
+                3PLE A DATA
               </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Fintech & Services</span>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-semibold">RC 9746103</span>
             </div>
           </div>
           <button
@@ -211,12 +217,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-start gap-2 text-slate-500 dark:text-slate-400">
             <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="text-[11px] leading-tight">
-              <span className="font-semibold text-slate-800 dark:text-slate-200 block">3PLE A HQ</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200 block">3PLE A DATA (RC 9746103)</span>
               Karkasara Road, Tarauni LGA, Kano State, Nigeria.
             </div>
           </div>
-          <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
-            Time: Africa/Lagos (WAT)
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 flex items-center justify-between">
+            <span>Time: Africa/Lagos (WAT)</span>
+            <button
+              onClick={() => handleSelect('legal')}
+              className="text-amber-600 dark:text-amber-400 hover:underline font-semibold"
+            >
+              Legal & NDPA
+            </button>
           </div>
         </div>
       </aside>

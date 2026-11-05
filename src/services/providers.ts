@@ -1,4 +1,9 @@
 import { ServiceProvider } from '../types';
+import {
+  secureProviderList,
+  loadPersistedSecuredProviders,
+  persistSecuredProviders,
+} from './providerSecurity';
 
 export interface ProviderResponse<T = any> {
   success: boolean;
@@ -9,6 +14,7 @@ export interface ProviderResponse<T = any> {
   data?: T;
   rawResponse?: any;
 }
+
 
 export interface CustomerValidationResult {
   customerName: string;
@@ -30,7 +36,7 @@ export interface ProviderAdapter {
   searchFlights?(origin: string, destination: string, date: string): Promise<any>;
 }
 
-export const INITIAL_PROVIDERS: ServiceProvider[] = [
+const BASE_PROVIDERS: ServiceProvider[] = [
   {
     id: 'prov_pairgate',
     name: 'pairgate',
@@ -229,12 +235,15 @@ export const INITIAL_PROVIDERS: ServiceProvider[] = [
   },
 ];
 
+export const INITIAL_PROVIDERS: ServiceProvider[] = secureProviderList(BASE_PROVIDERS);
+
+
 export class UnifiedProviderService {
-  private providers: ServiceProvider[] = [...INITIAL_PROVIDERS];
+  private providers: ServiceProvider[] = loadPersistedSecuredProviders(INITIAL_PROVIDERS);
 
   constructor(customProviders?: ServiceProvider[]) {
     if (customProviders && customProviders.length > 0) {
-      this.providers = customProviders;
+      this.providers = secureProviderList(customProviders);
     }
   }
 
@@ -242,11 +251,59 @@ export class UnifiedProviderService {
     return this.providers;
   }
 
-  getActiveProviderForService(service: keyof ServiceProvider['capabilities']): ServiceProvider | undefined {
-    return this.providers
-      .filter((p) => p.status === 'active' && p.capabilities[service])
-      .sort((a, b) => a.priority - b.priority)[0];
+  setProviders(newProviders: ServiceProvider[]): void {
+    this.providers = secureProviderList(newProviders);
+    persistSecuredProviders(this.providers);
   }
+
+  /**
+   * Intelligently selects active provider with automated circuit breaker failover
+   */
+  getActiveProviderForService(service: keyof ServiceProvider['capabilities']): ServiceProvider | undefined {
+    const candidates = this.providers
+      .filter((p) => p.status === 'active' && p.capabilities[service])
+      .sort((a, b) => a.priority - b.priority);
+
+    if (candidates.length === 0) return undefined;
+
+    const primary = candidates[0];
+
+    // Check circuit breaker status
+    if (primary.circuitBreaker && primary.circuitBreaker.state === 'open') {
+      // Find configured auto-failover provider or next available candidate
+      if (primary.autoFailoverProviderId) {
+        const failoverProv = this.providers.find(
+          (p) => p.id === primary.autoFailoverProviderId && p.status === 'active' && p.capabilities[service]
+        );
+        if (failoverProv && (!failoverProv.circuitBreaker || failoverProv.circuitBreaker.state !== 'open')) {
+          console.warn(`[CIRCUIT BREAKER] ${primary.displayName} circuit is OPEN. Auto-routed to ${failoverProv.displayName}`);
+          return failoverProv;
+        }
+      }
+
+      // Fallback to next healthy candidate
+      const backup = candidates.find((p) => p.circuitBreaker?.state !== 'open');
+      if (backup) {
+        console.warn(`[CIRCUIT BREAKER] Fallback from ${primary.displayName} to backup ${backup.displayName}`);
+        return backup;
+      }
+    }
+
+    return primary;
+  }
+
+  /**
+   * Deduct transaction cost from upstream provider escrow float
+   */
+  private deductProviderFloat(provider: ServiceProvider | undefined, amount: number) {
+    if (!provider || provider.floatBalanceNgn === undefined) return;
+    provider.floatBalanceNgn = Math.max(0, provider.floatBalanceNgn - amount);
+    if (provider.minFloatThresholdNgn && provider.floatBalanceNgn < provider.minFloatThresholdNgn) {
+      provider.lowFloatAlertActive = true;
+    }
+    persistSecuredProviders(this.providers);
+  }
+
 
   async testConnection(providerId: string): Promise<{ success: boolean; latencyMs: number; message: string }> {
     const prov = this.providers.find((p) => p.id === providerId);
@@ -331,6 +388,8 @@ export class UnifiedProviderService {
     const prov = this.getActiveProviderForService('airtime');
     await new Promise((r) => setTimeout(r, 600));
 
+    this.deductProviderFloat(prov, amount);
+
     return {
       success: true,
       code: '00',
@@ -357,6 +416,9 @@ export class UnifiedProviderService {
     const prov = this.getActiveProviderForService('data');
     await new Promise((r) => setTimeout(r, 700));
 
+    // Approximate cost deduction from float
+    this.deductProviderFloat(prov, 350);
+
     return {
       success: true,
       code: '00',
@@ -374,6 +436,7 @@ export class UnifiedProviderService {
     };
   }
 
+
   async executeElectricityPayment(
     disco: string,
     meterNumber: string,
@@ -383,6 +446,8 @@ export class UnifiedProviderService {
   ): Promise<ProviderResponse> {
     const prov = this.getActiveProviderForService('electricity');
     await new Promise((r) => setTimeout(r, 800));
+
+    this.deductProviderFloat(prov, amount);
 
     // Generate realistic token for prepaid meters
     const token = isPrepaid
@@ -419,7 +484,10 @@ export class UnifiedProviderService {
     amount: number,
     reference: string
   ): Promise<ProviderResponse> {
+    const prov = this.getActiveProviderForService('cableTv');
     await new Promise((r) => setTimeout(r, 700));
+
+    this.deductProviderFloat(prov, amount);
 
     return {
       success: true,
@@ -443,7 +511,10 @@ export class UnifiedProviderService {
     amount: number,
     reference: string
   ): Promise<ProviderResponse> {
+    const prov = this.getActiveProviderForService('education');
     await new Promise((r) => setTimeout(r, 800));
+
+    this.deductProviderFloat(prov, amount);
 
     return {
       success: true,
@@ -469,7 +540,10 @@ export class UnifiedProviderService {
     amount: number,
     reference: string
   ): Promise<ProviderResponse> {
+    const prov = this.getActiveProviderForService('flights');
     await new Promise((r) => setTimeout(r, 900));
+
+    this.deductProviderFloat(prov, amount);
 
     const pnr = `3P${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const supplierRef = `MSW-FLT-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -494,6 +568,7 @@ export class UnifiedProviderService {
       },
     };
   }
+
 }
 
 export const providerService = new UnifiedProviderService();

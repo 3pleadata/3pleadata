@@ -39,6 +39,13 @@ import {
   TrustedBiometricDevice,
   BiometricConfig,
 } from '../services/biometrics';
+import {
+  AutoLogoutConfig,
+  getAutoLogoutConfig,
+  saveAutoLogoutConfig,
+  getSecurityPin,
+  saveSecurityPin,
+} from '../services/security';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -49,6 +56,7 @@ interface AuthModalProps {
   onTestBiometrics?: () => void;
   theme: ThemeMode;
   onSetTheme: (newTheme: ThemeMode) => void;
+  onLockSessionNow?: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -60,10 +68,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onTestBiometrics,
   theme,
   onSetTheme,
+  onLockSessionNow,
 }) => {
   const [tab, setTab] = useState<'switch' | 'security' | 'appearance'>('switch');
-  const [newPin, setNewPin] = useState<string>('1234');
+  const [newPin, setNewPin] = useState<string>(() => getSecurityPin());
   const [pinSaved, setPinSaved] = useState<boolean>(false);
+
+  // Auto-Logout & Session Inactivity Security State
+  const [autoLogoutConfig, setAutoLogoutConfig] = useState<AutoLogoutConfig>(() =>
+    getAutoLogoutConfig()
+  );
+  const [autoLogoutSavedMsg, setAutoLogoutSavedMsg] = useState<string>('');
 
   // Biometric Security & Device State
   const [trustedDevices, setTrustedDevices] = useState<TrustedBiometricDevice[]>(() =>
@@ -139,10 +154,72 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSavePin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPin.length === 4) {
+    if (newPin.length >= 4) {
+      saveSecurityPin(newPin);
       setPinSaved(true);
       setTimeout(() => setPinSaved(false), 2000);
     }
+  };
+
+  const handleToggleAutoLogout = () => {
+    const updated: AutoLogoutConfig = {
+      ...autoLogoutConfig,
+      enabled: !autoLogoutConfig.enabled,
+    };
+    setAutoLogoutConfig(updated);
+    saveAutoLogoutConfig(updated);
+    const msg = updated.enabled
+      ? language === 'ha'
+        ? 'An kunna kullewar asusu bayan rashin aiki'
+        : 'Inactivity auto-logout enabled'
+      : language === 'ha'
+      ? 'An kashe kullewar asusu ta atomatik'
+      : 'Inactivity auto-logout disabled';
+    setAutoLogoutSavedMsg(msg);
+    setTimeout(() => setAutoLogoutSavedMsg(''), 2500);
+  };
+
+  const handleSelectAutoLogoutTimeout = (minutes: number) => {
+    const updated: AutoLogoutConfig = {
+      ...autoLogoutConfig,
+      timeoutMinutes: minutes,
+      enabled: true,
+    };
+    setAutoLogoutConfig(updated);
+    saveAutoLogoutConfig(updated);
+    const msg =
+      language === 'ha'
+        ? `An saita lokacin kullewa: Minti ${minutes}`
+        : `Auto-logout timer set to ${minutes} min${minutes > 1 ? 's' : ''}`;
+    setAutoLogoutSavedMsg(msg);
+    setTimeout(() => setAutoLogoutSavedMsg(''), 2500);
+  };
+
+  const handleToggleWarningBeforeLock = () => {
+    const updated: AutoLogoutConfig = {
+      ...autoLogoutConfig,
+      warningSeconds: autoLogoutConfig.warningSeconds > 0 ? 0 : 30,
+    };
+    setAutoLogoutConfig(updated);
+    saveAutoLogoutConfig(updated);
+  };
+
+  const handleToggleLockOnBlur = () => {
+    const updated: AutoLogoutConfig = {
+      ...autoLogoutConfig,
+      lockOnBlur: !autoLogoutConfig.lockOnBlur,
+    };
+    setAutoLogoutConfig(updated);
+    saveAutoLogoutConfig(updated);
+  };
+
+  const handleToggleSoundAlert = () => {
+    const updated: AutoLogoutConfig = {
+      ...autoLogoutConfig,
+      soundAlertOnLock: !autoLogoutConfig.soundAlertOnLock,
+    };
+    setAutoLogoutConfig(updated);
+    saveAutoLogoutConfig(updated);
   };
 
   const handleSelectTimeout = (minutes: number) => {
@@ -565,134 +642,225 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
-            {/* SECTION 1: IDLE TIMEOUT LOCK DURATION */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3.5">
-              <div className="flex items-center justify-between">
+            {/* SECTION 1: CONFIGURABLE INACTIVITY AUTO-LOGOUT & SESSION LOCK */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-amber-400/20 text-amber-600 dark:text-amber-400">
-                    <Clock className="w-4 h-4" />
+                    <Timer className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 dark:text-white text-xs block">
-                      {language === 'ha' ? 'Tsawon Lokacin Kullewa (Idle Timeout)' : 'Idle Timeout Lock Duration'}
-                    </span>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block">
+                        {language === 'ha'
+                          ? 'Kullewar Asusu Ta Hanyar Rashin Aiki (Auto-Logout Timer)'
+                          : 'Configurable Inactivity Auto-Logout Timer'}
+                      </span>
+                      <span
+                        className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
+                          autoLogoutConfig.enabled
+                            ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {autoLogoutConfig.enabled
+                          ? `Armed · ${autoLogoutConfig.timeoutMinutes}m`
+                          : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       {language === 'ha'
-                        ? 'Zaɓi tsawon lokacin da asusunka zai tsaya a bude kafin ya nemi biometric ko PIN.'
-                        : 'Choose how long biometric authorization persists before requiring re-authentication.'}
+                        ? 'Yana kulle asusunka gaba daya tare da tilasta sake tantancewa (PIN ko Biometric) bayan wani lokaci na rashin aiki.'
+                        : 'Automatically locks the app session and forces re-authentication (Biometric or Security PIN) after inactivity.'}
                     </p>
                   </div>
                 </div>
 
-                {timeoutSavedMessage && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 animate-fade-in">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>{timeoutSavedMessage}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Segmented Duration Buttons */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                {[
-                  {
-                    minutes: 0,
-                    label: '0m',
-                    sub: language === 'ha' ? 'Nan take' : 'Immediate',
-                    badge: language === 'ha' ? 'Kowanne mataki' : 'Strict',
-                  },
-                  {
-                    minutes: 1,
-                    label: '1m',
-                    sub: language === 'ha' ? 'Minti 1' : '1 Min',
-                    badge: language === 'ha' ? 'Gaggawa' : '1 Minute',
-                  },
-                  {
-                    minutes: 5,
-                    label: '5m',
-                    sub: language === 'ha' ? 'Minti 5' : '5 Mins',
-                    badge: language === 'ha' ? 'Shawarwari' : 'Standard',
-                  },
-                  {
-                    minutes: 15,
-                    label: '15m',
-                    sub: language === 'ha' ? 'Minti 15' : '15 Mins',
-                    badge: language === 'ha' ? 'Tsawaita' : 'Extended',
-                  },
-                  {
-                    minutes: 30,
-                    label: '30m',
-                    sub: language === 'ha' ? 'Minti 30' : '30 Mins',
-                    badge: language === 'ha' ? 'Saki jiki' : 'Relaxed',
-                  },
-                ].map((option) => {
-                  const isSelected = biometricConfig.sessionTimeoutMinutes === option.minutes;
-                  return (
-                    <button
-                      key={option.minutes}
-                      type="button"
-                      onClick={() => handleSelectTimeout(option.minutes)}
-                      className={`relative p-2.5 rounded-xl border text-center transition-all ${
-                        isSelected
-                          ? 'border-amber-400 bg-amber-400/10 dark:bg-amber-400/20 text-slate-900 dark:text-white shadow-xs ring-2 ring-amber-400/30'
-                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-750'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-1 font-mono font-black text-sm">
-                        <span>{option.label}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />}
-                      </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                        {option.sub}
-                      </div>
-                      <div
-                        className={`text-[9px] font-mono uppercase px-1 py-0.2 rounded mt-1 inline-block font-semibold ${
-                          isSelected
-                            ? 'bg-amber-400 text-slate-950 font-bold'
-                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {option.badge}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Auto-Lock on Blur Switch */}
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
-                <div className="space-y-0.5 pr-4">
-                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <Timer className="w-3.5 h-3.5 text-amber-500" />
-                    <span>
-                      {language === 'ha'
-                        ? 'Kullewa Nan Take Idan Aka Bar Shafi'
-                        : 'Auto-Lock on Tab Inactivity & Screen Blur'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {language === 'ha'
-                      ? 'Yana kulle duk wani izinin biometric nan take da zaran ka canza tab ko ka saukar da browser.'
-                      : 'Instantly revokes biometric authorization when switching away to another tab or minimizing the browser.'}
-                  </p>
-                </div>
-
+                {/* Master Auto-Logout Toggle */}
                 <button
                   type="button"
                   role="switch"
-                  aria-checked={!!biometricConfig.autoLockOnBlur}
-                  onClick={handleToggleAutoLock}
+                  aria-checked={autoLogoutConfig.enabled}
+                  onClick={handleToggleAutoLogout}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    biometricConfig.autoLockOnBlur ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+                    autoLogoutConfig.enabled ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
-                  aria-label="Toggle auto-lock on blur"
+                  aria-label="Toggle auto-logout timer"
                 >
                   <span
                     className={`pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      biometricConfig.autoLockOnBlur ? 'translate-x-5' : 'translate-x-0'
+                      autoLogoutConfig.enabled ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
+              </div>
+
+              {autoLogoutSavedMsg && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 animate-fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{autoLogoutSavedMsg}</span>
+                </div>
+              )}
+
+              {/* Segmented Duration Buttons */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {language === 'ha' ? 'Lokacin Rashin Aiki Kafin Kullewa' : 'Inactivity Duration Before Session Lock:'}
+                  </span>
+                  <span className="text-slate-400 font-mono text-[10px]">
+                    Current: <strong className="text-amber-500">{autoLogoutConfig.timeoutMinutes} Minutes</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                  {[
+                    {
+                      minutes: 1,
+                      label: '1m',
+                      sub: language === 'ha' ? 'Minti 1' : '1 Min',
+                      badge: language === 'ha' ? 'Gwaji' : 'Quick Test',
+                    },
+                    {
+                      minutes: 2,
+                      label: '2m',
+                      sub: language === 'ha' ? 'Minti 2' : '2 Mins',
+                      badge: language === 'ha' ? 'Tsaro' : 'High Security',
+                    },
+                    {
+                      minutes: 5,
+                      label: '5m',
+                      sub: language === 'ha' ? 'Minti 5' : '5 Mins',
+                      badge: language === 'ha' ? 'Shawarwari' : 'Standard',
+                    },
+                    {
+                      minutes: 10,
+                      label: '10m',
+                      sub: language === 'ha' ? 'Minti 10' : '10 Mins',
+                      badge: language === 'ha' ? 'Matsakaici' : 'Balanced',
+                    },
+                    {
+                      minutes: 15,
+                      label: '15m',
+                      sub: language === 'ha' ? 'Minti 15' : '15 Mins',
+                      badge: language === 'ha' ? 'Tsawaita' : 'Extended',
+                    },
+                    {
+                      minutes: 30,
+                      label: '30m',
+                      sub: language === 'ha' ? 'Minti 30' : '30 Mins',
+                      badge: language === 'ha' ? 'Saki jiki' : 'Relaxed',
+                    },
+                  ].map((option) => {
+                    const isSelected = autoLogoutConfig.timeoutMinutes === option.minutes;
+                    return (
+                      <button
+                        key={option.minutes}
+                        type="button"
+                        onClick={() => handleSelectAutoLogoutTimeout(option.minutes)}
+                        className={`relative p-2 rounded-xl border text-center transition-all ${
+                          isSelected
+                            ? 'border-amber-400 bg-amber-400/10 dark:bg-amber-400/20 text-slate-900 dark:text-white shadow-xs ring-2 ring-amber-400/30'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-750'
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-1 font-mono font-black text-xs">
+                          <span>{option.label}</span>
+                          {isSelected && <Check className="w-3 h-3 text-amber-500 dark:text-amber-400" />}
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                          {option.sub}
+                        </div>
+                        <div
+                          className={`text-[8px] font-mono uppercase px-1 py-0.2 rounded mt-0.5 inline-block font-semibold ${
+                            isSelected
+                              ? 'bg-amber-400 text-slate-950 font-bold'
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {option.badge}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Advanced Sub-options & Lock Test */}
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700/60 space-y-2.5">
+                {/* Countdown Warning Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>
+                      {language === 'ha'
+                        ? 'Nuna gargadin kidayar dakiku 30 kafin kullewa'
+                        : 'Show 30-second countdown warning banner before locking'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={autoLogoutConfig.warningSeconds > 0}
+                    onChange={handleToggleWarningBeforeLock}
+                    className="rounded border-slate-300 text-amber-500 focus:ring-amber-400 h-4 w-4"
+                  />
+                </div>
+
+                {/* Lock on Tab Blur Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Laptop className="w-3.5 h-3.5 text-blue-500" />
+                    <span>
+                      {language === 'ha'
+                        ? 'Kulle asusu nan take idan aka bar shafin browser'
+                        : 'Lock session immediately when switching tabs or minimizing browser'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={autoLogoutConfig.lockOnBlur}
+                    onChange={handleToggleLockOnBlur}
+                    className="rounded border-slate-300 text-amber-500 focus:ring-amber-400 h-4 w-4"
+                  />
+                </div>
+
+                {/* Sound Chime Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>
+                      {language === 'ha'
+                        ? 'Sauti na tsaro idan asusu ya kulle ko ya bude'
+                        : 'Audio chime feedback on lock and unlock'}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={autoLogoutConfig.soundAlertOnLock}
+                    onChange={handleToggleSoundAlert}
+                    className="rounded border-slate-300 text-amber-500 focus:ring-amber-400 h-4 w-4"
+                  />
+                </div>
+
+                {/* Instant Lock Test Button */}
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">
+                    {language === 'ha' ? 'Gwada kullewar asusu nan take:' : 'Test session locking instantly:'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      if (onLockSessionNow) {
+                        onLockSessionNow();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-amber-400 dark:hover:bg-amber-300 text-white dark:text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{language === 'ha' ? 'Kulle Asusu Yanzu' : 'Lock Session Now'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 

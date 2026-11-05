@@ -1,4 +1,4 @@
-import { LedgerEntry, Transaction, TransactionStatus } from '../types';
+import { LedgerEntry, Transaction, TransactionStatus, User } from '../types';
 
 export class DoubleEntryLedgerEngine {
   // Known Chart of Accounts
@@ -13,7 +13,16 @@ export class DoubleEntryLedgerEngine {
     PLATFORM_REVENUE_FEES: 'EQUITY:REVENUE_FEES',
     PLATFORM_REVENUE_MARKUP: 'EQUITY:REVENUE_MARKUP',
     PROMO_DISCOUNT_EXPENSE: 'EXPENSE:PROMO_DISCOUNT',
+    ADMIN_ADJUSTMENT_CAPITAL: 'EQUITY:ADMIN_ADJUSTMENT_CAPITAL',
+    ADMIN_ADJUSTMENT_DEDUCTION: 'EQUITY:ADMIN_ADJUSTMENT_DEDUCTION',
   };
+
+  /**
+   * Generates a collision-proof ledger entry ID
+   */
+  private static genId(suffix: string = 'entry'): string {
+    return `ldg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${suffix}`;
+  }
 
   /**
    * Generates double entry records for funding a wallet via a Payment Gateway
@@ -30,7 +39,7 @@ export class DoubleEntryLedgerEngine {
 
     return [
       {
-        id: `ldg_${Date.now()}_1`,
+        id: this.genId('fund'),
         transactionRef: transaction.reference,
         timestamp,
         debitAccount: assetAccount, // Bank/Gateway cash increases
@@ -55,7 +64,7 @@ export class DoubleEntryLedgerEngine {
     // 1. Debit Customer Wallet (reduces liability)
     //    Credit Provider Escrow (we now owe or paid the provider)
     entries.push({
-      id: `ldg_${Date.now()}_1`,
+      id: this.genId('vtu_debit'),
       transactionRef: transaction.reference,
       timestamp,
       debitAccount: this.ACCOUNTS.CUSTOMER_WALLET,
@@ -68,7 +77,7 @@ export class DoubleEntryLedgerEngine {
     // 2. If discount was given:
     if (transaction.discount > 0) {
       entries.push({
-        id: `ldg_${Date.now()}_2`,
+        id: this.genId('vtu_disc'),
         transactionRef: transaction.reference,
         timestamp,
         debitAccount: this.ACCOUNTS.PROMO_DISCOUNT_EXPENSE,
@@ -92,7 +101,7 @@ export class DoubleEntryLedgerEngine {
     const timestamp = new Date().toISOString();
     return [
       {
-        id: `ldg_${Date.now()}_1`,
+        id: this.genId('flight'),
         transactionRef: transaction.reference,
         timestamp,
         debitAccount: this.ACCOUNTS.CUSTOMER_WALLET,
@@ -114,7 +123,7 @@ export class DoubleEntryLedgerEngine {
     const timestamp = new Date().toISOString();
     return [
       {
-        id: `ldg_${Date.now()}_rev`,
+        id: this.genId('rev'),
         transactionRef: `${originalTransaction.reference}_REV`,
         timestamp,
         debitAccount: this.ACCOUNTS.PROVIDER_ESCROW_VTU,
@@ -137,7 +146,7 @@ export class DoubleEntryLedgerEngine {
     const timestamp = new Date().toISOString();
     return [
       {
-        id: `ldg_${Date.now()}_xfer`,
+        id: this.genId('xfer'),
         transactionRef: transaction.reference,
         timestamp,
         debitAccount: this.ACCOUNTS.CUSTOMER_WALLET,
@@ -147,6 +156,59 @@ export class DoubleEntryLedgerEngine {
         narration: `Internal instant QR transfer from ${senderName} to ${recipientName} (${transaction.reference})`,
       },
     ];
+  }
+
+  /**
+   * Generates double entry records for admin manual wallet adjustments
+   */
+  static recordAdminWalletAdjustment(
+    user: User,
+    type: 'credit' | 'debit',
+    amount: number,
+    targetBalance: 'wallet' | 'bonus' | 'commission',
+    narration: string,
+    ref: string
+  ): LedgerEntry[] {
+    const timestamp = new Date().toISOString();
+    const liabilityAccount =
+      targetBalance === 'commission'
+        ? this.ACCOUNTS.COMMISSION_PAYABLE
+        : user.role === 'retailer' || user.role === 'api_reseller'
+        ? this.ACCOUNTS.RETAILER_WALLET
+        : this.ACCOUNTS.CUSTOMER_WALLET;
+
+    const contraAccount =
+      type === 'credit'
+        ? this.ACCOUNTS.ADMIN_ADJUSTMENT_CAPITAL
+        : this.ACCOUNTS.ADMIN_ADJUSTMENT_DEDUCTION;
+
+    if (type === 'credit') {
+      return [
+        {
+          id: this.genId('adj_cr'),
+          transactionRef: ref,
+          timestamp,
+          debitAccount: contraAccount,
+          creditAccount: liabilityAccount,
+          amount,
+          currency: 'NGN',
+          narration: `[ADMIN CREDIT: ${targetBalance.toUpperCase()}] ${narration} (${user.name} - ${user.phone})`,
+        },
+      ];
+    } else {
+      return [
+        {
+          id: this.genId('adj_dr'),
+          transactionRef: ref,
+          timestamp,
+          debitAccount: liabilityAccount,
+          creditAccount: contraAccount,
+          amount,
+          currency: 'NGN',
+          narration: `[ADMIN DEBIT: ${targetBalance.toUpperCase()}] ${narration} (${user.name} - ${user.phone})`,
+        },
+      ];
+    }
   }
 
   /**

@@ -117,6 +117,24 @@ export interface ProviderCapability {
   collections: boolean;
 }
 
+export interface ProviderCircuitBreaker {
+  state: 'closed' | 'open' | 'half_open';
+  consecutiveFailures: number;
+  failureThreshold: number;
+  recoveryTimeoutSec: number;
+  lastTripAt?: string;
+  lastRecoverAt?: string;
+}
+
+export interface ProviderAuditLog {
+  id: string;
+  timestamp: string;
+  action: 'rotated' | 'tested' | 'revoked' | 'failover_triggered' | 'recovered' | 'float_topped_up';
+  actor: string;
+  ip: string;
+  note: string;
+}
+
 export interface ServiceProvider {
   id: string;
   name: string;
@@ -136,7 +154,22 @@ export interface ServiceProvider {
   capabilities: ProviderCapability;
   timeoutSeconds: number;
   notes: string;
+  // Security Hardening & Vault Attributes
+  vaultStatus?: 'aes_256_gcm' | 'hardware_enclave';
+  keyLastRotatedAt?: string;
+  keyRotationDue?: boolean;
+  webhookSecretMasked?: string;
+  webhookHmacAlgorithm?: 'sha512' | 'sha256' | 'token';
+  allowedIps?: string[];
+  enforceIpAllowlist?: boolean;
+  circuitBreaker?: ProviderCircuitBreaker;
+  autoFailoverProviderId?: string;
+  floatBalanceNgn?: number;
+  minFloatThresholdNgn?: number;
+  lowFloatAlertActive?: boolean;
+  secretAuditTrail?: ProviderAuditLog[];
 }
+
 
 export interface AirtimeNetwork {
   id: string;
@@ -201,6 +234,9 @@ export interface EducationItem {
 export interface FlightOffer {
   id: string;
   airline: string;
+  airlineIata: string;
+  airlineUrl: string;
+  logoUrl?: string;
   flightNumber: string;
   origin: string;
   originCity: string;
@@ -217,6 +253,8 @@ export interface FlightOffer {
   taxes: number;
   totalPrice: number;
   availableSeats: number;
+  updatedAt?: string;
+  isEstimate?: boolean;
 }
 
 export interface FlightBooking {
@@ -333,6 +371,36 @@ export interface PriceAlert {
   createdAt: string;
   lastCheckedAt?: string;
   notes?: string;
+}
+
+export interface FlightRoutePriceAlert {
+  id: string;
+  userId?: string;
+  email: string;
+  origin: string; // e.g., 'LOS'
+  originCity: string; // e.g., 'Lagos'
+  destination: string; // e.g., 'ABV'
+  destinationCity: string; // e.g., 'Abuja'
+  targetPriceNgn: number;
+  currentLowestPriceNgn: number;
+  lowestPriceAirline?: string;
+  lowestFlightNumber?: string;
+  cabinClass?: 'Economy' | 'Business';
+  preferredDate?: string;
+  status: 'active' | 'triggered' | 'paused';
+  createdAt: string;
+  lastCheckedAt: string;
+  triggeredAt?: string;
+  triggeredFareNgn?: number;
+  triggeredFlightDetails?: {
+    airline: string;
+    flightNumber: string;
+    departureTime: string;
+    arrivalTime: string;
+    priceNgn: number;
+    url: string;
+  };
+  notificationSent?: boolean;
 }
 
 export type ScheduleFrequency = 'daily' | 'weekly' | 'monthly' | 'custom_day';

@@ -75,9 +75,17 @@ export const TransactionCategorizerWidget: React.FC<TransactionCategorizerWidget
   const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [justConfirmedId, setJustConfirmedId] = useState<string | null>(null);
 
-  // Filter uncategorized transactions
-  const uncategorizedList = transactions.filter(
-    (t) => (t.isUncategorized || t.type === 'uncategorized' || t.category === 'Uncategorized') && !t.categoryConfirmed
+  // Filter uncategorized transactions (strictly deduplicated by id)
+  const uncategorizedList = Array.from(
+    new Map(
+      transactions
+        .filter(
+          (t) =>
+            (t.isUncategorized || t.type === 'uncategorized' || t.category === 'Uncategorized') &&
+            !t.categoryConfirmed
+        )
+        .map((t) => [t.id, t])
+    ).values()
   );
 
   const categorizedCount = transactions.filter((t) => !t.isUncategorized && t.type !== 'uncategorized').length;
@@ -120,7 +128,12 @@ export const TransactionCategorizerWidget: React.FC<TransactionCategorizerWidget
     const timer = setInterval(() => {
       setSecondsUntilNextScan((prev) => {
         if (prev <= 1) {
-          handleRunAudit('autonomous');
+          const hasPendingUncategorized = transactionsRef.current.some(
+            (t) => (t.isUncategorized || t.type === 'uncategorized') && !t.suggestedCategory
+          );
+          if (hasPendingUncategorized) {
+            handleRunAudit('autonomous');
+          }
           return config.reviewIntervalSeconds;
         }
         return prev - 1;
@@ -380,7 +393,7 @@ export const TransactionCategorizerWidget: React.FC<TransactionCategorizerWidget
 
                 return (
                   <div
-                    key={tx.id}
+                    key={`cat_widget_tx_${tx.id}`}
                     className={`p-3.5 rounded-xl border transition-all ${
                       isConfirmed
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700'

@@ -7,6 +7,7 @@ import {
   ElectricityDisco,
   FlightBooking,
   FlightOffer,
+  FlightRoutePriceAlert,
   LedgerEntry,
   NotificationItem,
   PropertyInquiry,
@@ -139,9 +140,134 @@ export const INITIAL_EDUCATION: EducationItem[] = [
 ];
 
 export const INITIAL_FLIGHTS: FlightOffer[] = [
+  // LOS <-> ABV
+  {
+    id: 'flt_los_abv_p4_1',
+    airline: 'Air Peace',
+    airlineIata: 'P4',
+    airlineUrl: 'https://flyairpeace.com',
+    flightNumber: 'P4-7120',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '07:00 AM',
+    arrivalTime: '08:15 AM',
+    duration: '1h 15m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Refundable with standard fee. Date change permitted.',
+    baseFare: 85000,
+    taxes: 7500,
+    totalPrice: 92500,
+    availableSeats: 9,
+    updatedAt: '2 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_abv_qi_1',
+    airline: 'Ibom Air',
+    airlineIata: 'QI',
+    airlineUrl: 'https://ibomair.com',
+    flightNumber: 'QI-0201',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '08:30 AM',
+    arrivalTime: '09:40 AM',
+    duration: '1h 10m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Schedule reliability guarantee. Standard cancellation penalty.',
+    baseFare: 98000,
+    taxes: 8200,
+    totalPrice: 106200,
+    availableSeats: 6,
+    updatedAt: '1 hour ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_abv_q9_1',
+    airline: 'Green Africa',
+    airlineIata: 'Q9',
+    airlineUrl: 'https://greenafrica.com',
+    flightNumber: 'Q9-302',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '10:00 AM',
+    arrivalTime: '11:20 AM',
+    duration: '1h 20m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '15kg Checked + 7kg Cabin',
+    fareRules: 'Value fare. Changes subject to fare difference.',
+    baseFare: 65000,
+    taxes: 6000,
+    totalPrice: 71000,
+    availableSeats: 12,
+    updatedAt: '3 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_abv_vk_1',
+    airline: 'ValueJet',
+    airlineIata: 'VK',
+    airlineUrl: 'https://flyvaluejet.com',
+    flightNumber: 'VK-104',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '01:30 PM',
+    arrivalTime: '02:45 PM',
+    duration: '1h 15m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Comfort cabin seating. Standard reschedule.',
+    baseFare: 78000,
+    taxes: 7000,
+    totalPrice: 85000,
+    availableSeats: 8,
+    updatedAt: '4 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_abv_los_w3_1',
+    airline: 'Arik Air',
+    airlineIata: 'W3',
+    airlineUrl: 'https://arikair.com',
+    flightNumber: 'W3-722',
+    origin: 'ABV',
+    originCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    destination: 'LOS',
+    destinationCity: 'Lagos (Murtala Muhammed Intl)',
+    departureTime: '09:00 AM',
+    arrivalTime: '10:15 AM',
+    duration: '1h 15m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Rescheduling available up to 4h before departure.',
+    baseFare: 82000,
+    taxes: 7400,
+    totalPrice: 89400,
+    availableSeats: 14,
+    updatedAt: '2 hours ago',
+    isEstimate: true,
+  },
+
+  // KAN <-> ABV & KAN <-> LOS
   {
     id: 'flt_kan_abv_1',
     airline: 'Air Peace',
+    airlineIata: 'P4',
+    airlineUrl: 'https://flyairpeace.com',
     flightNumber: 'P4-7124',
     origin: 'KAN',
     originCity: 'Kano (Mallam Aminu Kano Intl)',
@@ -158,10 +284,38 @@ export const INITIAL_FLIGHTS: FlightOffer[] = [
     taxes: 8500,
     totalPrice: 100500,
     availableSeats: 7,
+    updatedAt: '30 mins ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_kan_abv_r4_1',
+    airline: 'Rano Air',
+    airlineIata: 'R4',
+    airlineUrl: 'https://ranoair.com',
+    flightNumber: 'R4-102',
+    origin: 'KAN',
+    originCity: 'Kano (Mallam Aminu Kano Intl)',
+    destination: 'ABV',
+    destinationCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    departureTime: '11:00 AM',
+    arrivalTime: '11:50 AM',
+    duration: '50m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Northern commuter express fare. Name changes restricted.',
+    baseFare: 75000,
+    taxes: 6500,
+    totalPrice: 81500,
+    availableSeats: 11,
+    updatedAt: '1 hour ago',
+    isEstimate: true,
   },
   {
     id: 'flt_kan_los_1',
     airline: 'Max Air',
+    airlineIata: 'VM',
+    airlineUrl: 'https://maxair.com.ng',
     flightNumber: 'VM-1602',
     origin: 'KAN',
     originCity: 'Kano (Mallam Aminu Kano Intl)',
@@ -178,46 +332,254 @@ export const INITIAL_FLIGHTS: FlightOffer[] = [
     taxes: 9500,
     totalPrice: 124500,
     availableSeats: 4,
+    updatedAt: '2 hours ago',
+    isEstimate: true,
   },
   {
-    id: 'flt_abv_kan_1',
-    airline: 'Ibom Air',
-    flightNumber: 'QI-0504',
-    origin: 'ABV',
-    originCity: 'Abuja (Nnamdi Azikiwe Intl)',
-    destination: 'KAN',
-    destinationCity: 'Kano (Mallam Aminu Kano Intl)',
-    departureTime: '02:00 PM',
-    arrivalTime: '02:55 PM',
-    duration: '55m',
+    id: 'flt_kan_los_zq_1',
+    airline: 'Azman Air',
+    airlineIata: 'ZQ',
+    airlineUrl: 'https://airazman.com',
+    flightNumber: 'ZQ-2311',
+    origin: 'KAN',
+    originCity: 'Kano (Mallam Aminu Kano Intl)',
+    destination: 'LOS',
+    destinationCity: 'Lagos (Murtala Muhammed Intl)',
+    departureTime: '03:30 PM',
+    arrivalTime: '05:00 PM',
+    duration: '1h 30m',
     cabinClass: 'Economy',
     stops: 0,
     baggageAllowance: '20kg Checked + 7kg Cabin',
-    fareRules: 'Refundable with standard policy. Seat selection complimentary.',
-    baseFare: 89000,
-    taxes: 7800,
-    totalPrice: 96800,
-    availableSeats: 12,
+    fareRules: 'Standard baggage rules. Reschedule penalty applies.',
+    baseFare: 98000,
+    taxes: 8400,
+    totalPrice: 106400,
+    availableSeats: 7,
+    updatedAt: '5 hours ago',
+    isEstimate: true,
   },
+
+  // LOS <-> PHC & ABV <-> PHC
   {
-    id: 'flt_los_kan_1',
-    airline: 'United Nigeria',
-    flightNumber: 'UN-508',
+    id: 'flt_los_phc_aj_1',
+    airline: 'Aero Contractors',
+    airlineIata: 'AJ',
+    airlineUrl: 'https://flyaero.com',
+    flightNumber: 'AJ-142',
     origin: 'LOS',
     originCity: 'Lagos (Murtala Muhammed Intl)',
-    destination: 'KAN',
-    destinationCity: 'Kano (Mallam Aminu Kano Intl)',
-    departureTime: '04:45 PM',
-    arrivalTime: '06:10 PM',
-    duration: '1h 25m',
+    destination: 'PHC',
+    destinationCity: 'Port Harcourt (Port Harcourt Intl)',
+    departureTime: '09:15 AM',
+    arrivalTime: '10:25 AM',
+    duration: '1h 10m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Flexible rebooking with fare difference.',
+    baseFare: 88000,
+    taxes: 7600,
+    totalPrice: 95600,
+    availableSeats: 8,
+    updatedAt: '1 hour ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_phc_un_1',
+    airline: 'United Nigeria Airlines',
+    airlineIata: 'UN',
+    airlineUrl: 'https://flyunitednigeria.com',
+    flightNumber: 'UN-512',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'PHC',
+    destinationCity: 'Port Harcourt (Port Harcourt Intl)',
+    departureTime: '12:45 PM',
+    arrivalTime: '01:55 PM',
+    duration: '1h 10m',
     cabinClass: 'Economy',
     stops: 0,
     baggageAllowance: '20kg Checked + 7kg Cabin',
     fareRules: 'Ticket valid for 12 months. Standard reschedule fees apply.',
-    baseFare: 110000,
-    taxes: 9200,
-    totalPrice: 119200,
-    availableSeats: 9,
+    baseFare: 94000,
+    taxes: 8000,
+    totalPrice: 102000,
+    availableSeats: 10,
+    updatedAt: '3 hours ago',
+    isEstimate: true,
+  },
+
+  // LOS <-> ENU & ABV <-> ENU
+  {
+    id: 'flt_los_enu_en_1',
+    airline: 'Enugu Air',
+    airlineIata: 'EN',
+    airlineUrl: 'https://enuguairlines.ng',
+    flightNumber: 'EN-101',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ENU',
+    destinationCity: 'Enugu (Akanu Ibiam Intl)',
+    departureTime: '10:00 AM',
+    arrivalTime: '11:05 AM',
+    duration: '1h 05m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Regional southeastern express corridor.',
+    baseFare: 79000,
+    taxes: 7000,
+    totalPrice: 86000,
+    availableSeats: 15,
+    updatedAt: '2 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_enu_p4_1',
+    airline: 'Air Peace',
+    airlineIata: 'P4',
+    airlineUrl: 'https://flyairpeace.com',
+    flightNumber: 'P4-7106',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ENU',
+    destinationCity: 'Enugu (Akanu Ibiam Intl)',
+    departureTime: '01:15 PM',
+    arrivalTime: '02:20 PM',
+    duration: '1h 05m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Refundable with standard fee. Complimentary snacks.',
+    baseFare: 92000,
+    taxes: 7800,
+    totalPrice: 99800,
+    availableSeats: 5,
+    updatedAt: '1 hour ago',
+    isEstimate: true,
+  },
+
+  // Regional: Overland (ILO, BNI, CBQ, SKO, MIU)
+  {
+    id: 'flt_los_ilo_of_1',
+    airline: 'Overland Airways',
+    airlineIata: 'OF',
+    airlineUrl: 'https://overlandairways.com',
+    flightNumber: 'OF-1188',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'ILO',
+    destinationCity: 'Ilorin (Ilorin Intl)',
+    departureTime: '07:30 AM',
+    arrivalTime: '08:15 AM',
+    duration: '45m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Turboprop regional direct connector. Reschedule fee applies.',
+    baseFare: 89000,
+    taxes: 7200,
+    totalPrice: 96200,
+    availableSeats: 6,
+    updatedAt: '4 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_abv_sko_vm_1',
+    airline: 'Max Air',
+    airlineIata: 'VM',
+    airlineUrl: 'https://maxair.com.ng',
+    flightNumber: 'VM-1804',
+    origin: 'ABV',
+    originCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    destination: 'SKO',
+    destinationCity: 'Sokoto (Sadiq Abubakar III Intl)',
+    departureTime: '02:30 PM',
+    arrivalTime: '03:35 PM',
+    duration: '1h 05m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Northwestern connector. Date change allowed.',
+    baseFare: 95000,
+    taxes: 8000,
+    totalPrice: 103000,
+    availableSeats: 10,
+    updatedAt: '3 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_abv_miu_r4_1',
+    airline: 'Rano Air',
+    airlineIata: 'R4',
+    airlineUrl: 'https://ranoair.com',
+    flightNumber: 'R4-306',
+    origin: 'ABV',
+    originCity: 'Abuja (Nnamdi Azikiwe Intl)',
+    destination: 'MIU',
+    destinationCity: 'Maiduguri (Maiduguri Intl)',
+    departureTime: '09:45 AM',
+    arrivalTime: '11:00 AM',
+    duration: '1h 15m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Northeastern express route. Valid ticket protection.',
+    baseFare: 99000,
+    taxes: 8500,
+    totalPrice: 107500,
+    availableSeats: 8,
+    updatedAt: '2 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_bni_vk_1',
+    airline: 'ValueJet',
+    airlineIata: 'VK',
+    airlineUrl: 'https://flyvaluejet.com',
+    flightNumber: 'VK-304',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'BNI',
+    destinationCity: 'Benin City (Benin Airport)',
+    departureTime: '03:15 PM',
+    arrivalTime: '04:00 PM',
+    duration: '45m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'Midwest domestic service. Non-refundable promotional rate.',
+    baseFare: 74000,
+    taxes: 6800,
+    totalPrice: 80800,
+    availableSeats: 12,
+    updatedAt: '5 hours ago',
+    isEstimate: true,
+  },
+  {
+    id: 'flt_los_cbq_qi_1',
+    airline: 'Ibom Air',
+    airlineIata: 'QI',
+    airlineUrl: 'https://ibomair.com',
+    flightNumber: 'QI-0402',
+    origin: 'LOS',
+    originCity: 'Lagos (Murtala Muhammed Intl)',
+    destination: 'CBQ',
+    destinationCity: 'Calabar (Margaret Ekpo Intl)',
+    departureTime: '11:45 AM',
+    arrivalTime: '12:55 PM',
+    duration: '1h 10m',
+    cabinClass: 'Economy',
+    stops: 0,
+    baggageAllowance: '20kg Checked + 7kg Cabin',
+    fareRules: 'South-South direct flight with on-time performance guarantee.',
+    baseFare: 96000,
+    taxes: 8100,
+    totalPrice: 104100,
+    availableSeats: 7,
+    updatedAt: '1 hour ago',
+    isEstimate: true,
   },
 ];
 
@@ -312,6 +674,131 @@ export const INITIAL_USER: User = {
   status: 'active',
   createdAt: '2026-01-15T08:00:00Z',
 };
+
+export const INITIAL_USERS: User[] = [
+  INITIAL_USER,
+  {
+    id: 'usr_3plea_demo_02',
+    name: 'Alhaji Musa Sulaiman',
+    email: 'musa.sulaiman@gmail.com',
+    phone: '+234 802 334 5566',
+    role: 'customer',
+    walletBalance: 85000,
+    bonusBalance: 1200,
+    commissionBalance: 0,
+    kycLevel: 2,
+    bvnVerified: true,
+    ninVerified: false,
+    twoFactorEnabled: false,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-02-10T11:20:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_03',
+    name: 'Fatima Aminu Zaria (Sub Hub)',
+    email: 'fatima.zaria@subhub.ng',
+    phone: '+234 813 456 7890',
+    role: 'retailer',
+    walletBalance: 620000,
+    bonusBalance: 12400,
+    commissionBalance: 48200,
+    kycLevel: 3,
+    bvnVerified: true,
+    ninVerified: true,
+    apiKey: '3plea_ret_48bc92a101f',
+    twoFactorEnabled: true,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-01-20T14:15:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_04',
+    name: 'Ibrahim Bello Karkasara',
+    email: 'ibrahim.karkasara@yahoo.com',
+    phone: '+234 806 778 9901',
+    role: 'agent',
+    walletBalance: 195000,
+    bonusBalance: 3100,
+    commissionBalance: 18900,
+    kycLevel: 2,
+    bvnVerified: true,
+    ninVerified: true,
+    twoFactorEnabled: true,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-02-05T09:40:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_05',
+    name: 'TechVenture API Gateway Ltd',
+    email: 'api-reseller@techventure.ng',
+    phone: '+234 809 112 2334',
+    role: 'api_reseller',
+    walletBalance: 1450000,
+    bonusBalance: 0,
+    commissionBalance: 89000,
+    kycLevel: 3,
+    bvnVerified: true,
+    ninVerified: true,
+    apiKey: '3plea_api_77f8812bb09',
+    twoFactorEnabled: true,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-01-18T16:00:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_06',
+    name: 'Aisha Garba (BUK Student)',
+    email: 'aisha.garba@buk.edu.ng',
+    phone: '+234 818 223 3445',
+    role: 'customer',
+    walletBalance: 24500,
+    bonusBalance: 400,
+    commissionBalance: 0,
+    kycLevel: 1,
+    bvnVerified: false,
+    ninVerified: false,
+    twoFactorEnabled: false,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-03-01T12:00:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_07',
+    name: 'Umar Farouk Desk Officer',
+    email: 'umar.support@3plea.ng',
+    phone: '+234 805 334 4556',
+    role: 'support_officer',
+    walletBalance: 10000,
+    bonusBalance: 0,
+    commissionBalance: 0,
+    kycLevel: 3,
+    bvnVerified: true,
+    ninVerified: true,
+    twoFactorEnabled: true,
+    transactionPinSet: true,
+    status: 'active',
+    createdAt: '2026-02-15T08:30:00Z',
+  },
+  {
+    id: 'usr_3plea_demo_08',
+    name: 'Sani Abubakar (Kano East)',
+    email: 'sani.abu@gmail.com',
+    phone: '+234 807 445 5667',
+    role: 'customer',
+    walletBalance: 0,
+    bonusBalance: 0,
+    commissionBalance: 0,
+    kycLevel: 1,
+    bvnVerified: false,
+    ninVerified: false,
+    twoFactorEnabled: false,
+    transactionPinSet: false,
+    status: 'suspended',
+    createdAt: '2026-02-28T10:10:00Z',
+  },
+];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   {
@@ -513,9 +1000,26 @@ export const INITIAL_UNCATEGORIZED_TRANSACTIONS: Transaction[] = [
   },
 ];
 
-// Combine standard and initial uncategorized transactions
-INITIAL_TRANSACTIONS.push(...INITIAL_UNCATEGORIZED_TRANSACTIONS);
+export function deduplicateTransactions(txs: Transaction[]): Transaction[] {
+  if (!Array.isArray(txs)) return [];
+  const seen = new Set<string>();
+  const result: Transaction[] = [];
+  for (const t of txs) {
+    if (t && t.id) {
+      if (!seen.has(t.id)) {
+        seen.add(t.id);
+        result.push(t);
+      }
+    }
+  }
+  return result;
+}
 
+// Immutable combined initial transactions
+export const ALL_INITIAL_TRANSACTIONS: Transaction[] = deduplicateTransactions([
+  ...INITIAL_TRANSACTIONS,
+  ...INITIAL_UNCATEGORIZED_TRANSACTIONS,
+]);
 
 export const INITIAL_LEDGER: LedgerEntry[] = [
   {
@@ -574,6 +1078,43 @@ export const INITIAL_PRICE_ALERTS: PriceAlert[] = [
     status: 'triggered',
     createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
     notes: 'Auto-detect when ₦10k monthly power recharge fits discount rate',
+  },
+];
+
+export const INITIAL_FLIGHT_PRICE_ALERTS: FlightRoutePriceAlert[] = [
+  {
+    id: 'flt_alert_1',
+    userId: 'usr_3plea_demo_01',
+    email: '3pleadata@gmail.com',
+    origin: 'LOS',
+    originCity: 'Lagos',
+    destination: 'ABV',
+    destinationCity: 'Abuja',
+    targetPriceNgn: 90000,
+    currentLowestPriceNgn: 95000,
+    lowestPriceAirline: 'Arik Air',
+    lowestFlightNumber: 'W3-722',
+    cabinClass: 'Economy',
+    status: 'active',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    lastCheckedAt: new Date().toISOString(),
+  },
+  {
+    id: 'flt_alert_2',
+    userId: 'usr_3plea_demo_01',
+    email: '3pleadata@gmail.com',
+    origin: 'LOS',
+    originCity: 'Lagos',
+    destination: 'PHC',
+    destinationCity: 'Port Harcourt',
+    targetPriceNgn: 85000,
+    currentLowestPriceNgn: 95600,
+    lowestPriceAirline: 'Aero Contractors',
+    lowestFlightNumber: 'AJ-142',
+    cabinClass: 'Economy',
+    status: 'active',
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    lastCheckedAt: new Date().toISOString(),
   },
 ];
 
@@ -681,6 +1222,7 @@ export const INITIAL_SCHEDULED_PAYMENTS: ScheduledPayment[] = [
 
 export interface AppState {
   currentUser: User;
+  users: User[];
   transactions: Transaction[];
   ledger: LedgerEntry[];
   providers: ServiceProvider[];
@@ -697,6 +1239,7 @@ export interface AppState {
   tickets: SupportTicket[];
   apiKeys: ApiResellerKey[];
   priceAlerts: PriceAlert[];
+  flightPriceAlerts?: FlightRoutePriceAlert[];
   scheduledPayments: ScheduledPayment[];
 }
 
@@ -711,17 +1254,47 @@ export function loadAppState(): AppState {
         properties: parsed.properties || INITIAL_PROPERTIES,
         providers: parsed.providers || INITIAL_PROVIDERS,
         priceAlerts: parsed.priceAlerts || INITIAL_PRICE_ALERTS,
-        scheduledPayments:
-          parsed.scheduledPayments && parsed.scheduledPayments.length >= 3
-            ? parsed.scheduledPayments
-            : INITIAL_SCHEDULED_PAYMENTS,
-        transactions: (() => {
-          const txs = parsed.transactions || INITIAL_TRANSACTIONS;
-          const hasUncategorized = txs.some((t: Transaction) => t.isUncategorized || t.type === 'uncategorized');
-          if (!hasUncategorized) {
-            return [...INITIAL_UNCATEGORIZED_TRANSACTIONS, ...txs];
+        flightPriceAlerts: parsed.flightPriceAlerts || INITIAL_FLIGHT_PRICE_ALERTS,
+        users: (() => {
+          if (parsed.users && Array.isArray(parsed.users) && parsed.users.length > 0) {
+            const map = new Map<string, User>();
+            for (const u of parsed.users) {
+              if (u && u.id) map.set(u.id, u);
+            }
+            for (const u of INITIAL_USERS) {
+              if (!map.has(u.id)) map.set(u.id, u);
+            }
+            return Array.from(map.values());
           }
-          return txs;
+          return INITIAL_USERS;
+        })(),
+        scheduledPayments: (() => {
+          const list =
+            parsed.scheduledPayments && parsed.scheduledPayments.length >= 3
+              ? parsed.scheduledPayments
+              : INITIAL_SCHEDULED_PAYMENTS;
+          const seen = new Set<string>();
+          return list.filter((p: any) => {
+            if (!p || !p.id || seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          });
+        })(),
+        transactions: (() => {
+          const rawTxs =
+            parsed.transactions && Array.isArray(parsed.transactions) && parsed.transactions.length > 0
+              ? parsed.transactions
+              : ALL_INITIAL_TRANSACTIONS;
+          const deduped = deduplicateTransactions(rawTxs);
+          const existingIds = new Set(deduped.map((t: Transaction) => t.id));
+          const missingUncat = INITIAL_UNCATEGORIZED_TRANSACTIONS.filter((u) => !existingIds.has(u.id));
+          const hasAnyUncat = deduped.some(
+            (t: Transaction) => t.isUncategorized || t.type === 'uncategorized'
+          );
+          if (!hasAnyUncat && missingUncat.length > 0) {
+            return deduplicateTransactions([...missingUncat, ...deduped]);
+          }
+          return deduped;
         })(),
       };
     }
@@ -731,7 +1304,8 @@ export function loadAppState(): AppState {
 
   const defaultState: AppState = {
     currentUser: INITIAL_USER,
-    transactions: INITIAL_TRANSACTIONS,
+    users: INITIAL_USERS,
+    transactions: ALL_INITIAL_TRANSACTIONS,
     ledger: INITIAL_LEDGER,
     providers: INITIAL_PROVIDERS,
     networks: INITIAL_NETWORKS,
@@ -810,6 +1384,7 @@ export function loadAppState(): AppState {
       },
     ],
     priceAlerts: INITIAL_PRICE_ALERTS,
+    flightPriceAlerts: INITIAL_FLIGHT_PRICE_ALERTS,
     scheduledPayments: INITIAL_SCHEDULED_PAYMENTS,
   };
 
@@ -819,7 +1394,20 @@ export function loadAppState(): AppState {
 
 export function saveAppState(state: AppState) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const cleanState: AppState = {
+      ...state,
+      users: state.users || INITIAL_USERS,
+      transactions: deduplicateTransactions(state.transactions),
+      scheduledPayments: (() => {
+        const seen = new Set<string>();
+        return (state.scheduledPayments || []).filter((p) => {
+          if (!p || !p.id || seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        });
+      })(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanState));
   } catch (e) {
     console.error('Failed to save state to localStorage:', e);
   }

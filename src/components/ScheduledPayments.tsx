@@ -886,7 +886,7 @@ export const ScheduledPayments: React.FC<ScheduledPaymentsProps> = ({
 
                 return (
                   <div
-                    key={idx}
+                    key={`cal_day_${dayItem.isoDateString || idx}`}
                     onClick={() => setSelectedCalendarDate(dayItem.date)}
                     className={`min-h-[86px] sm:min-h-[105px] p-1.5 sm:p-2 rounded-lg border text-left cursor-pointer transition-all flex flex-col justify-between ${
                       dayItem.isCurrentMonth
@@ -922,7 +922,7 @@ export const ScheduledPayments: React.FC<ScheduledPaymentsProps> = ({
 
                     {/* Bill Indicators on Calendar Day */}
                     <div className="space-y-1 mt-1 overflow-hidden">
-                      {billsOnDay.slice(0, 2).map((b) => {
+                      {billsOnDay.slice(0, 2).map((b, bIdx) => {
                         const style = getCategoryStyles(b.category);
                         const isSkippedThisCycle =
                           b.status === 'skipped' ||
@@ -933,7 +933,7 @@ export const ScheduledPayments: React.FC<ScheduledPaymentsProps> = ({
 
                         return (
                           <div
-                            key={b.id}
+                            key={`cal_day_${dayItem.isoDateString}_b_${b.id}_${bIdx}`}
                             className={`px-1.5 py-0.5 rounded text-[10px] font-medium truncate flex items-center gap-1 ${
                               isSkippedThisCycle
                                 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 line-through'

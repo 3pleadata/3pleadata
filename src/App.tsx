@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { App as NativeApp } from '@capacitor/app';
-import { Capacitor, PluginListenerHandle } from '@capacitor/core';
-import { StatusBar, Style as StatusBarStyle } from '@capacitor/status-bar';
-import { AppState, loadAppState, saveAppState } from './services/storage';
-import { Transaction, User, UserRole } from './types';
+import React, { useState, useEffect } from 'react';
+import { AppState, loadAppState, saveAppState, deduplicateTransactions } from './services/storage';
+import { NotificationItem, Transaction, User, UserRole } from './types';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ReceiptModal } from './components/ReceiptModal';
 import { FundWalletModal } from './components/FundWalletModal';
 import { AuthModal } from './pages/AuthModal';
+import { FloatingAssistantButton } from './components/FloatingAssistantButton';
+import { AiAssistantPanel } from './components/AiAssistantPanel';
 
 import { HomeDashboard } from './pages/HomeDashboard';
 import { AirtimePage } from './pages/AirtimePage';
@@ -23,15 +22,26 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { DeveloperPortal } from './pages/DeveloperPortal';
 import { SupportPage } from './pages/SupportPage';
 import { ScheduledPaymentsPage } from './pages/ScheduledPaymentsPage';
+import { LegalPage } from './pages/LegalPage';
 
 import { DoubleEntryLedgerEngine } from './services/ledger';
 import { BiometricAuthOverlay } from './components/BiometricAuthOverlay';
+import { SessionLockScreen } from './components/SessionLockScreen';
+import { InactivityWarningBanner } from './components/InactivityWarningBanner';
 import {
   isBiometricSessionValid,
   clearBiometricSession,
   getBiometricConfig,
   BiometricTarget,
+  playBiometricSound,
 } from './services/biometrics';
+import {
+  getAutoLogoutConfig,
+  isSessionLocked,
+  setSessionLocked,
+  recordUserActivity,
+  getLastUserActivity,
+} from './services/security';
 import { ThemeMode, getInitialTheme, applyTheme } from './services/theme';
 import {
   Language,
@@ -61,29 +71,133 @@ export default function App() {
     }
   }, [language]);
 
-  // Auto-lock on blur / tab inactivity when enabled in Security preferences
+  // Session Inactivity Lock & Auto-Logout State
+  const [isAppSessionLocked, setIsAppSessionLocked] = useState<boolean>(() => isSessionLocked());
+  const [inactivityWarningSeconds, setInactivityWarningSeconds] = useState<number | null>(null);
+  const lastUserActivityRef = React.useRef<number>(getLastUserActivity());
+
+  // Inactivity Watchdog & Auto-Logout Timer Engine
   useEffect(() => {
-    const handleInactivity = () => {
-      const config = getBiometricConfig();
-      if (config.autoLockOnBlur) {
+    // Record initial activity
+    recordUserActivity();
+    lastUserActivityRef.current = Date.now();
+
+    const updateActivity = () => {
+      lastUserActivityRef.current = Date.now();
+      recordUserActivity();
+      setInactivityWarningSeconds(null);
+    };
+
+    // User activity listeners
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    let throttleTimeout: any = null;
+
+    const throttledHandler = () => {
+      if (!throttleTimeout) {
+        updateActivity();
+        throttleTimeout = setTimeout(() => {
+          throttleTimeout = null;
+        }, 1200);
+      }
+    };
+
+    activityEvents.forEach((ev) => window.addEventListener(ev, throttledHandler, { passive: true }));
+
+    // 1-second interval checking elapsed inactivity
+    const interval = setInterval(() => {
+      const config = getAutoLogoutConfig();
+      if (!config.enabled) {
+        setInactivityWarningSeconds(null);
+        return;
+      }
+
+      // If already locked, keep locked state synced
+      if (isSessionLocked()) {
+        setIsAppSessionLocked(true);
+        setInactivityWarningSeconds(null);
+        return;
+      }
+
+      const elapsedSeconds = Math.floor((Date.now() - lastUserActivityRef.current) / 1000);
+      const timeoutSeconds = config.timeoutMinutes * 60;
+      const warningThreshold = Math.max(10, config.warningSeconds || 30);
+
+      if (elapsedSeconds >= timeoutSeconds) {
+        // Exceeded inactivity timeout -> Lock session!
+        setSessionLocked(true, 'inactivity');
+        setIsAppSessionLocked(true);
+        setInactivityWarningSeconds(null);
         clearBiometricSession();
         setBiometricTick((t) => t + 1);
+        if (config.soundAlertOnLock) {
+          playBiometricSound('fail');
+        }
+      } else if (config.warningSeconds > 0 && elapsedSeconds >= timeoutSeconds - warningThreshold) {
+        // In warning countdown phase
+        const remaining = timeoutSeconds - elapsedSeconds;
+        setInactivityWarningSeconds(remaining);
+      } else {
+        setInactivityWarningSeconds(null);
+      }
+    }, 1000);
+
+    // Tab blur / visibilitychange handler
+    const handleBlurOrHide = () => {
+      const config = getAutoLogoutConfig();
+      if (config.enabled && (config.lockOnBlur || getBiometricConfig().autoLockOnBlur)) {
+        setSessionLocked(true, 'blur');
+        setIsAppSessionLocked(true);
+        setInactivityWarningSeconds(null);
+        clearBiometricSession();
+        setBiometricTick((t) => t + 1);
+        if (config.soundAlertOnLock) {
+          playBiometricSound('fail');
+        }
       }
     };
 
-    const handleVisibilityChange = () => {
+    const handleVisibility = () => {
       if (document.hidden) {
-        handleInactivity();
+        handleBlurOrHide();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleInactivity);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', handleBlurOrHide);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleInactivity);
+      activityEvents.forEach((ev) => window.removeEventListener(ev, throttledHandler));
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('blur', handleBlurOrHide);
     };
   }, []);
+
+  const handleUnlockSession = () => {
+    setSessionLocked(false);
+    setIsAppSessionLocked(false);
+    setInactivityWarningSeconds(null);
+    lastUserActivityRef.current = Date.now();
+    recordUserActivity();
+  };
+
+  const handleLockSessionNow = () => {
+    setSessionLocked(true, 'manual');
+    setIsAppSessionLocked(true);
+    setInactivityWarningSeconds(null);
+    clearBiometricSession();
+    setBiometricTick((t) => t + 1);
+    const config = getAutoLogoutConfig();
+    if (config.soundAlertOnLock) {
+      playBiometricSound('fail');
+    }
+  };
+
+  const handleStayLoggedIn = () => {
+    lastUserActivityRef.current = Date.now();
+    recordUserActivity();
+    setInactivityWarningSeconds(null);
+  };
 
   const handleToggleTheme = () => {
     const isCurrentlyDark =
@@ -105,84 +219,12 @@ export default function App() {
   const [selectedReceiptTx, setSelectedReceiptTx] = useState<Transaction | null>(null);
   const [showFundModal, setShowFundModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showAiAssistant, setShowAiAssistant] = useState<boolean>(false);
 
   // Biometric Protection State
   const [biometricTarget, setBiometricTarget] = useState<BiometricTarget | null>(null);
   const [pendingBiometricAction, setPendingBiometricAction] = useState<(() => void) | null>(null);
   const [, setBiometricTick] = useState<number>(0);
-
-  const nativeBackState = useRef({
-    activeTab,
-    sidebarOpen,
-    biometricTarget,
-    showAuthModal,
-    showFundModal,
-    selectedReceiptTx,
-  });
-  nativeBackState.current = {
-    activeTab,
-    sidebarOpen,
-    biometricTarget,
-    showAuthModal,
-    showFundModal,
-    selectedReceiptTx,
-  };
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    let active = true;
-    let listener: PluginListenerHandle | undefined;
-    void NativeApp.addListener('backButton', () => {
-      const current = nativeBackState.current;
-      if (current.biometricTarget) {
-        setBiometricTarget(null);
-        setPendingBiometricAction(null);
-      } else if (current.showAuthModal) {
-        setShowAuthModal(false);
-      } else if (current.showFundModal) {
-        setShowFundModal(false);
-      } else if (current.selectedReceiptTx) {
-        setSelectedReceiptTx(null);
-      } else if (current.sidebarOpen) {
-        setSidebarOpen(false);
-      } else if (current.activeTab !== 'dashboard') {
-        setActiveTab('dashboard');
-      } else {
-        void NativeApp.exitApp();
-      }
-    }).then((registeredListener) => {
-      if (active) {
-        listener = registeredListener;
-      } else {
-        void registeredListener.remove();
-      }
-    });
-
-    return () => {
-      active = false;
-      void listener?.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const updateStatusBar = () => {
-      const isDark = theme === 'dark' || (theme === 'system' && colorScheme.matches);
-      void StatusBar.setOverlaysWebView({ overlay: false });
-      void StatusBar.setStyle({
-        style: isDark ? StatusBarStyle.Light : StatusBarStyle.Dark,
-      });
-    };
-
-    updateStatusBar();
-    if (theme === 'system') {
-      colorScheme.addEventListener('change', updateStatusBar);
-      return () => colorScheme.removeEventListener('change', updateStatusBar);
-    }
-  }, [theme]);
 
   const isBiometricActive =
     isBiometricSessionValid('wallet_funding') || isBiometricSessionValid('admin_dashboard');
@@ -239,6 +281,15 @@ export default function App() {
   const updateState = (newState: Partial<AppState>) => {
     setState((prev) => {
       const merged = { ...prev, ...newState };
+      if (merged.transactions) {
+        merged.transactions = deduplicateTransactions(merged.transactions);
+      }
+      if (merged.users && merged.currentUser) {
+        const matched = merged.users.find((u) => u.id === merged.currentUser.id);
+        if (matched) {
+          merged.currentUser = matched;
+        }
+      }
       saveAppState(merged);
       return merged;
     });
@@ -274,10 +325,24 @@ export default function App() {
       walletBalance: state.currentUser.walletBalance + amount,
     };
 
+    const notif: NotificationItem = {
+      id: `notif_${Date.now()}`,
+      userId: state.currentUser.id,
+      title: language === 'ha' ? 'An Saka Kudi a Walat' : 'Wallet Credited Successfully',
+      message:
+        language === 'ha'
+          ? `An samu nasarar saka ₦${amount.toLocaleString()} a walat dinka ta hanyar ${gateway.toUpperCase()}. Ref: ${newTx.reference}`
+          : `₦${amount.toLocaleString()} received via ${gateway.toUpperCase()} Channel. Ref: ${newTx.reference}`,
+      type: 'transaction',
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+
     updateState({
       currentUser: updatedUser,
       transactions: [newTx, ...state.transactions],
       ledger: [...state.ledger, ...ledgerEntries],
+      notifications: [notif, ...(state.notifications || [])],
     });
 
     setSelectedReceiptTx(newTx);
@@ -311,6 +376,9 @@ export default function App() {
         onTriggerBiometricTest={() => handleTriggerBiometricTest('general')}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        state={state}
+        onViewReceipt={(tx) => setSelectedReceiptTx(tx)}
+        updateState={updateState}
       />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
@@ -447,6 +515,65 @@ export default function App() {
               language={language}
             />
           )}
+
+          {activeTab === 'legal' && (
+            <LegalPage
+              state={state}
+              updateState={updateState}
+              language={language}
+            />
+          )}
+
+          {/* Universal Footer with Legal & Regulatory Disclosures */}
+          <footer className="mt-12 pt-8 pb-4 border-t border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left">
+                <p className="font-semibold text-slate-700 dark:text-slate-300">
+                  © 2026 3PLE A DATA (RC 9746103) · CAC Registered.
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Karkasara Road, Tarauni LGA, Kano State, Nigeria · Virtual Stored-Value Wallet & Digital Utility Gateway.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px]">
+                <button
+                  onClick={() => handleNavigateTab('legal')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Privacy Policy (NDPA 2023)
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('legal')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Terms of Service
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('legal')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Refund & Dispute Policy
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('legal')}
+                  className="hover:text-red-500 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Account Deletion (App Stores)
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('support')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Support & Help Desk
+                </button>
+              </div>
+            </div>
+          </footer>
         </main>
       </div>
 
@@ -475,6 +602,28 @@ export default function App() {
         onTestBiometrics={() => handleTriggerBiometricTest('general')}
         theme={theme}
         onSetTheme={handleSetTheme}
+        onLockSessionNow={handleLockSessionNow}
+      />
+
+      {/* Floating Inactivity Pre-Lock Warning Banner */}
+      <InactivityWarningBanner
+        isOpen={!isAppSessionLocked && inactivityWarningSeconds !== null && inactivityWarningSeconds > 0}
+        secondsRemaining={inactivityWarningSeconds || 0}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLockNow={handleLockSessionNow}
+        language={language}
+      />
+
+      {/* Full-Screen Inactivity & Security Session Lock Overlay */}
+      <SessionLockScreen
+        isLocked={isAppSessionLocked}
+        currentUser={state.currentUser}
+        onUnlock={handleUnlockSession}
+        onSwitchUser={() => {
+          handleUnlockSession();
+          setShowAuthModal(true);
+        }}
+        language={language}
       />
 
       {/* Simulated Biometric Authentication Overlay (FaceID / Fingerprint / PIN) */}
@@ -488,6 +637,31 @@ export default function App() {
           setPendingBiometricAction(null);
         }}
         onSuccess={handleBiometricSuccess}
+      />
+
+      {/* Floating AI & Google Chat Assistant Button */}
+      <FloatingAssistantButton
+        isOpen={showAiAssistant}
+        onToggle={() => setShowAiAssistant((prev) => !prev)}
+        language={language}
+      />
+
+      {/* Side-Panel AI Assistant & Google Chat Support Interface */}
+      <AiAssistantPanel
+        isOpen={showAiAssistant}
+        onClose={() => setShowAiAssistant(false)}
+        currentUser={state.currentUser}
+        recentTransactions={state.transactions}
+        activeTab={activeTab}
+        onNavigateTab={(tab) => {
+          handleNavigateTab(tab);
+          setShowAiAssistant(false);
+        }}
+        onOpenFundModal={() => {
+          setShowAiAssistant(false);
+          handleOpenFundModal();
+        }}
+        language={language}
       />
     </div>
   );

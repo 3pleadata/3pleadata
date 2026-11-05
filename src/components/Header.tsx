@@ -1,5 +1,6 @@
-import React from 'react';
-import { User, UserRole } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, UserRole, Transaction } from '../types';
+import { AppState } from '../services/storage';
 import {
   Globe,
   Plus,
@@ -8,9 +9,12 @@ import {
   ScanFace,
   Sun,
   Moon,
+  Search,
 } from 'lucide-react';
 import { ThemeMode } from '../services/theme';
 import { Language, t } from '../services/i18n';
+import { GlobalSearchModal } from './GlobalSearchModal';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   currentUser: User;
@@ -27,6 +31,9 @@ interface HeaderProps {
   onTriggerBiometricTest?: () => void;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
+  state?: AppState;
+  onViewReceipt?: (tx: Transaction) => void;
+  updateState?: (newState: Partial<AppState>) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,7 +51,34 @@ export const Header: React.FC<HeaderProps> = ({
   onTriggerBiometricTest,
   theme = 'light',
   onToggleTheme,
+  state,
+  onViewReceipt,
+  updateState,
 }) => {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Global search keyboard shortcuts (Cmd+K, Ctrl+K, or '/')
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+      if (
+        e.key === '/' &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA' &&
+        document.activeElement?.tagName !== 'SELECT'
+      ) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const isDark =
     theme === 'dark' ||
     (theme === 'system' &&
@@ -79,9 +113,14 @@ export const Header: React.FC<HeaderProps> = ({
                     '/public/assets/aistudio/file_00000000af208211b9b8694ca4544f0f_3769349c.png';
                 }}
               />
-              <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0">
-                3PLE A
-              </span>
+              <div className="flex flex-col">
+                <span className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0 leading-none">
+                  3PLE A DATA
+                </span>
+                <span className="text-[9px] font-mono font-semibold text-amber-600 dark:text-amber-400 leading-tight mt-0.5">
+                  RC 9746103
+                </span>
+              </div>
             </button>
           </div>
 
@@ -146,8 +185,37 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </nav>
 
+          {/* Global Search Bar (Trigger) */}
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            className="hidden md:flex items-center justify-between gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-750 text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700/80 text-xs transition-all w-36 lg:w-56 shadow-2xs group focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+            title="Global Search (⌘K or /)"
+            aria-label="Open global search dialog"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 dark:group-hover:text-amber-400 shrink-0 transition-colors" />
+              <span className="truncate text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200">
+                {language === 'ha' ? 'Nemi ciniki, kaya...' : 'Search everything...'}
+              </span>
+            </div>
+            <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 rounded border border-slate-200 dark:border-slate-700 shadow-2xs">
+              ⌘K
+            </kbd>
+          </button>
+
           {/* Zone 3: Actions cluster */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Mobile Search Button */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="md:hidden p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title={language === 'ha' ? 'Nema (⌘K)' : 'Search (⌘K)'}
+              aria-label="Open search dialog"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             {/* Persistent Language Switcher */}
             <div
               className="inline-flex items-center p-0.5 sm:p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors"
@@ -205,6 +273,18 @@ export const Header: React.FC<HeaderProps> = ({
                   <Moon className="w-4 h-4 text-slate-600" />
                 )}
               </button>
+            )}
+
+            {/* Real-time Notification Bell */}
+            {state && (
+              <NotificationBell
+                notifications={state.notifications || []}
+                onUpdateNotifications={(updated) => updateState?.({ notifications: updated })}
+                onViewReceipt={onViewReceipt}
+                transactions={state.transactions || []}
+                currentUser={currentUser}
+                language={language}
+              />
             )}
 
             {/* Biometric Security Vault Indicator & Quick Lock/Test */}
@@ -279,6 +359,17 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {state && (
+        <GlobalSearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          state={state}
+          onSelectTab={setActiveTab}
+          onViewReceipt={onViewReceipt}
+          language={language}
+        />
+      )}
     </header>
   );
 };

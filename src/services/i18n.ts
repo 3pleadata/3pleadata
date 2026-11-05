@@ -2,8 +2,8 @@ export type Language = 'en' | 'ha';
 
 export const translations = {
   en: {
-    appName: '3PLE A',
-    tagline: 'Fintech, VTU, Travel, Retail & Estate',
+    appName: '3PLE A DATA',
+    tagline: 'RC 9746103 · Fintech, VTU, Travel, Retail & Estate',
     address: 'Karkasara Road, Tarauni, Kano State, Nigeria',
     welcome: 'Welcome back',
     walletBalance: 'Available Balance',
@@ -97,6 +97,7 @@ export const translations = {
     navEducation: 'School Fees & Exams',
     navSchedules: 'Smart Schedules',
     navSupport: 'Support & Help',
+    navLegal: 'Legal & Compliance',
     headerBalance: 'Balance',
     headerVaultUnlocked: 'Vault Unlocked',
     headerBiometrics: 'Biometrics',
@@ -113,8 +114,8 @@ export const translations = {
     langHaShort: 'HA',
   },
   ha: {
-    appName: '3PLE A',
-    tagline: 'Fintech, VTU, Balaguro, Kasuwanci & Gidaje',
+    appName: '3PLE A DATA',
+    tagline: 'RC 9746103 · Fintech, VTU, Balaguro, Kasuwanci & Gidaje',
     address: 'Hanyar Karkasara, Tarauni, Jihar Kano, Najeriya',
     welcome: 'Barka da dawowa',
     walletBalance: 'Kudin dake Asusunka',
@@ -208,6 +209,7 @@ export const translations = {
     navEducation: 'Kudin Makaranta',
     navSchedules: 'Jadawalin Biyan Kudi',
     navSupport: 'Tallafi & Tikiti',
+    navLegal: 'Dokoki da Ka\'idoji',
     headerBalance: 'Asusunka',
     headerVaultUnlocked: 'A Bude',
     headerBiometrics: 'Halitta',

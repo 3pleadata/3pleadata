@@ -23,7 +23,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     // Generate simple text receipt download
     const content = `
 ========================================
-           3PLE A PLATFORM
+         3PLE A DATA (RC 9746103)
   Karkasara Road, Tarauni, Kano State
       TRANSACTION RECEIPT (WAT)
 ========================================
@@ -106,8 +106,8 @@ support@3plea.ng | +234 803 000 3PLE
                 }}
               />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">3PLE A</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Fintech, VTU, Travel, Retail & Estate Platform</p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">3PLE A DATA</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">RC 9746103 · Fintech, VTU, Travel, Retail & Estate</p>
             <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
               Karkasara Road, Tarauni Local Government Area, Kano State, Nigeria
             </p>
