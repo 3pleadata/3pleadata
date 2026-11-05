@@ -76,4 +76,20 @@
   .print-only {
     display: block !important;
   }
+  #printable-receipt {
+    max-width: 360px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 14px 18px !important;
+    background: white !important;
+    color: #0f172a !important;
+    border: 1px dashed #94a3b8 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+  #printable-receipt * {
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
 }
+
