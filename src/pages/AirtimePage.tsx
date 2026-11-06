@@ -5,6 +5,7 @@ import { PinModal } from '../components/PinModal';
 import { Smartphone, Zap, ShieldCheck, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { providerService } from '../services/providers';
 import { DoubleEntryLedgerEngine } from '../services/ledger';
+import { alertTransactionSuccess } from '../services/fcmService';
 
 interface AirtimePageProps {
   state: AppState;
@@ -115,6 +116,9 @@ export const AirtimePage: React.FC<AirtimePageProps> = ({
         transactions: [newTx, ...state.transactions],
         ledger: [...state.ledger, ...ledgerEntries],
       });
+
+      // Firebase Cloud Messaging Push Notification
+      alertTransactionSuccess(newTx, language).catch(() => {});
 
       setLoading(false);
       onViewReceipt(newTx);

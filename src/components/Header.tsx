@@ -10,7 +10,9 @@ import {
   Sun,
   Moon,
   Search,
+  LogIn,
 } from 'lucide-react';
+
 import { ThemeMode } from '../services/theme';
 import { Language, t } from '../services/i18n';
 import { GlobalSearchModal } from './GlobalSearchModal';
@@ -356,9 +358,24 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <UserIcon className="w-4 h-4" />
             </button>
+
+            {/* Direct Login Page Navigation */}
+            <button
+              onClick={() => setActiveTab('login')}
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                activeTab === 'login'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200'
+              }`}
+              title="Open Dedicated Login Page"
+            >
+              <LogIn className="w-3.5 h-3.5 text-amber-500" />
+              <span>{language === 'ha' ? 'Shiga Asusu' : 'Login'}</span>
+            </button>
           </div>
         </div>
       </div>
+
 
       {state && (
         <GlobalSearchModal

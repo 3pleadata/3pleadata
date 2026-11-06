@@ -23,6 +23,8 @@ import { DeveloperPortal } from './pages/DeveloperPortal';
 import { SupportPage } from './pages/SupportPage';
 import { ScheduledPaymentsPage } from './pages/ScheduledPaymentsPage';
 import { LegalPage } from './pages/LegalPage';
+import { LoginPage } from './pages/LoginPage';
+
 
 import { DoubleEntryLedgerEngine } from './services/ledger';
 import { BiometricAuthOverlay } from './components/BiometricAuthOverlay';
@@ -48,6 +50,12 @@ import {
   getStoredLanguage,
   saveStoredLanguage,
 } from './services/i18n';
+import {
+  initFCM,
+  onPushNotificationReceived,
+  alertWalletCredit,
+  alertSecurityEvent,
+} from './services/fcmService';
 
 export default function App() {
   const [state, setState] = useState<AppState>(loadAppState);
@@ -70,6 +78,40 @@ export default function App() {
       document.documentElement.lang = language;
     }
   }, [language]);
+
+  // Firebase Cloud Messaging (FCM) Initialization & Real-Time In-App Listener
+  useEffect(() => {
+    initFCM().catch((err) => console.warn('[App] FCM initialization:', err));
+
+    const unsubscribe = onPushNotificationReceived((pushPayload) => {
+      setState((prevState) => {
+        const alreadyExists = prevState.notifications.some((n) => n.id === pushPayload.id);
+        if (alreadyExists) return prevState;
+
+        const notifItem: NotificationItem = {
+          id: pushPayload.id,
+          userId: prevState.currentUser.id,
+          title: pushPayload.title,
+          message: pushPayload.body,
+          type:
+            pushPayload.type === 'transaction_success' || pushPayload.type === 'wallet_credit'
+              ? 'transaction'
+              : 'security',
+          read: false,
+          createdAt: pushPayload.timestamp,
+        };
+
+        const updated = [notifItem, ...prevState.notifications];
+        saveAppState({ ...prevState, notifications: updated });
+        return {
+          ...prevState,
+          notifications: updated,
+        };
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Session Inactivity Lock & Auto-Logout State
   const [isAppSessionLocked, setIsAppSessionLocked] = useState<boolean>(() => isSessionLocked());
@@ -132,6 +174,15 @@ export default function App() {
         if (config.soundAlertOnLock) {
           playBiometricSound('fail');
         }
+        alertSecurityEvent({
+          title: language === 'ha' ? 'An Kulle Zama Saboda Rashin Aiki' : 'Inactivity Session Locked',
+          details:
+            language === 'ha'
+              ? 'An kulle asusunka na 3PLE A bayan rashin aiki don kare bayanan asusu.'
+              : 'Your 3PLE A session was locked after inactivity timeout. PIN or Biometric unlock required.',
+          level: 'warning',
+          language,
+        }).catch(() => {});
       } else if (config.warningSeconds > 0 && elapsedSeconds >= timeoutSeconds - warningThreshold) {
         // In warning countdown phase
         const remaining = timeoutSeconds - elapsedSeconds;
@@ -171,7 +222,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('blur', handleBlurOrHide);
     };
-  }, []);
+  }, [language]);
 
   const handleUnlockSession = () => {
     setSessionLocked(false);
@@ -191,6 +242,15 @@ export default function App() {
     if (config.soundAlertOnLock) {
       playBiometricSound('fail');
     }
+    alertSecurityEvent({
+      title: language === 'ha' ? 'An Kulle Zama da Hannu' : 'Session Secured',
+      details:
+        language === 'ha'
+          ? 'An kulle zama. Shigar da lambar PIN ko FaceID don budewa.'
+          : '3PLE A platform session secured. PIN or Biometric unlock required.',
+      level: 'info',
+      language,
+    }).catch(() => {});
   };
 
   const handleStayLoggedIn = () => {
@@ -344,6 +404,15 @@ export default function App() {
       ledger: [...state.ledger, ...ledgerEntries],
       notifications: [notif, ...(state.notifications || [])],
     });
+
+    // Firebase Cloud Messaging Push Notification for Wallet Credit
+    alertWalletCredit({
+      amount,
+      gateway,
+      reference: newTx.reference,
+      newBalance: updatedUser.walletBalance,
+      language,
+    }).catch(() => {});
 
     setSelectedReceiptTx(newTx);
   };
@@ -524,6 +593,18 @@ export default function App() {
             />
           )}
 
+          {(activeTab === 'login' || activeTab === 'auth') && (
+            <LoginPage
+              state={state}
+              updateState={updateState}
+              setActiveTab={handleNavigateTab}
+              language={language}
+              onSwitchLanguage={() => handleSetLanguage(language === 'en' ? 'ha' : 'en')}
+              onOpenFundModal={handleOpenFundModal}
+            />
+          )}
+
+
           {/* Universal Footer with Legal & Regulatory Disclosures */}
           <footer className="mt-12 pt-8 pb-4 border-t border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -571,7 +652,15 @@ export default function App() {
                 >
                   Support & Help Desk
                 </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('login')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
+                >
+                  Sign In / Account Portal
+                </button>
               </div>
+
             </div>
           </footer>
         </main>

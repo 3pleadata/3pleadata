@@ -40,6 +40,7 @@ import {
 import { providerService } from '../services/providers';
 import { DoubleEntryLedgerEngine } from '../services/ledger';
 import { flightSearchSchema } from '../services/flightSearchService';
+import { alertTransactionSuccess } from '../services/fcmService';
 
 interface FlightsPageProps {
   state: AppState;
@@ -1410,6 +1411,9 @@ export const FlightsPage: React.FC<FlightsPageProps> = ({
         ledger: [...state.ledger, ...ledgerEntries],
         flightBookings: [bookingRecord, ...state.flightBookings],
       });
+
+      // Firebase Cloud Messaging Push Notification
+      alertTransactionSuccess(newTx, language).catch(() => {});
 
       setBookingLoading(false);
       setWalletFlight(null);

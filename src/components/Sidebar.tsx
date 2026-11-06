@@ -18,7 +18,9 @@ import {
   CreditCard,
   CalendarClock,
   Scale,
+  LogIn,
 } from 'lucide-react';
+
 import { Language, t } from '../services/i18n';
 
 interface SidebarProps {
@@ -106,7 +108,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: t('navLegal', language),
       icon: Scale,
     },
+    {
+      id: 'login',
+      label: t('navLogin', language),
+      icon: LogIn,
+    },
   ];
+
 
   if (currentUser.role === 'administrator' || currentUser.role === 'super_admin') {
     navItems.push({

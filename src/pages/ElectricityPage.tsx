@@ -5,6 +5,7 @@ import { PinModal } from '../components/PinModal';
 import { Zap, ShieldCheck, Check, AlertCircle, Loader2, CheckCircle2, UserCheck } from 'lucide-react';
 import { providerService, CustomerValidationResult } from '../services/providers';
 import { DoubleEntryLedgerEngine } from '../services/ledger';
+import { alertTransactionSuccess } from '../services/fcmService';
 
 interface ElectricityPageProps {
   state: AppState;
@@ -138,6 +139,9 @@ export const ElectricityPage: React.FC<ElectricityPageProps> = ({
         transactions: [newTx, ...state.transactions],
         ledger: [...state.ledger, ...ledgerEntries],
       });
+
+      // Firebase Cloud Messaging Push Notification
+      alertTransactionSuccess(newTx, language).catch(() => {});
 
       setLoading(false);
       onViewReceipt(newTx);

@@ -196,7 +196,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       { id: 'developers', name: 'Developer REST API & Webhooks', keywords: 'developer api documentation keys endpoints webhooks' },
       { id: 'support', name: 'Customer Support & Live Helpdesk', keywords: 'support help ticket chat desk agent' },
       { id: 'admin', name: 'Super Admin Console & Margin Engine', keywords: 'admin super admin pricing margin users audit ledger' },
+      { id: 'login', name: 'Login & Account Sign-In (RC 9746103)', keywords: 'login signin sign in auth account password register profile switch' },
     ];
+
 
     return pages.filter((p) => p.name.toLowerCase().includes(trimmed) || p.keywords.includes(trimmed)).slice(0, 3);
   }, [trimmed]);

@@ -5,6 +5,7 @@ import { PinModal } from '../components/PinModal';
 import { Wifi, ShieldCheck, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { providerService } from '../services/providers';
 import { DoubleEntryLedgerEngine } from '../services/ledger';
+import { alertTransactionSuccess } from '../services/fcmService';
 
 interface DataPageProps {
   state: AppState;
@@ -121,6 +122,9 @@ export const DataPage: React.FC<DataPageProps> = ({
         transactions: [newTx, ...state.transactions],
         ledger: [...state.ledger, ...ledgerEntries],
       });
+
+      // Firebase Cloud Messaging Push Notification
+      alertTransactionSuccess(newTx, language).catch(() => {});
 
       setLoading(false);
       onViewReceipt(newTx);

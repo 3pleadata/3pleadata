@@ -16,7 +16,16 @@ import {
   PlusCircle,
   Volume2,
   VolumeX,
+  Radio,
+  Settings,
 } from 'lucide-react';
+import { FCMPushSettingsModal } from './FCMPushSettingsModal';
+import {
+  getFCMConfig,
+  alertWalletCredit,
+  triggerDemoTransactionPush,
+  triggerDemoSecurityAlertPush,
+} from '../services/fcmService';
 
 export interface NotificationBellProps {
   notifications: NotificationItem[];
@@ -62,6 +71,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   language,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isFCMModalOpen, setIsFCMModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'transactions' | 'announcements'>('all');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hasNewAlert, setHasNewAlert] = useState(false);
@@ -190,6 +200,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     };
 
     onUpdateNotifications([newNotification, ...notifications]);
+
+    // Also trigger FCM push alert
+    alertWalletCredit({
+      amount,
+      gateway,
+      reference: ref,
+      newBalance: currentUser.walletBalance + amount,
+      language,
+    }).catch(() => {});
   };
 
   // Quick Simulation: Trigger platform announcement
@@ -297,6 +316,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
+              {/* FCM Push Settings Modal Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsFCMModalOpen(true)}
+                className="p-1.5 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-colors flex items-center gap-1"
+                title={language === 'ha' ? 'Saitunan FCM Push' : 'FCM Push Notifications Settings'}
+                aria-label="FCM Push Settings"
+              >
+                <Radio className="w-3.5 h-3.5 text-amber-500" />
+              </button>
+
               {/* Sound Toggle */}
               <button
                 type="button"
@@ -506,9 +536,32 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 <span>+ Announcement</span>
               </button>
             </div>
+
+            {/* FCM Push Notification Configuration Link */}
+            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsFCMModalOpen(true);
+                }}
+                className="w-full py-1.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/25 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Radio className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>{language === 'ha' ? 'Saitunan Sanarwar FCM Push' : 'Configure FCM Push Notifications'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* FCM Push Settings Modal */}
+      <FCMPushSettingsModal
+        isOpen={isFCMModalOpen}
+        onClose={() => setIsFCMModalOpen(false)}
+        language={language}
+        userId={currentUser.id}
+      />
     </div>
   );
 };
