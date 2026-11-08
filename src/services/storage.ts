@@ -19,6 +19,7 @@ import {
   UserRole,
   PriceAlert,
   ScheduledPayment,
+  ReferralRecord,
 } from '../types';
 import { INITIAL_PROVIDERS } from './providers';
 
@@ -893,112 +894,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
   },
 ];
 
-export const INITIAL_UNCATEGORIZED_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'tx_3pa_uncat_101',
-    reference: '3PA-POS-20260325-8812',
-    idempotencyKey: 'idem_uncat_8812',
-    userId: 'usr_3plea_demo_01',
-    userName: 'Aliyu Mohammed Kano',
-    userPhone: '+234 803 123 4567',
-    type: 'uncategorized',
-    category: 'Uncategorized',
-    isUncategorized: true,
-    amount: 15000,
-    fee: 100,
-    discount: 0,
-    totalDebited: 15100,
-    status: 'successful',
-    provider: 'Direct Agency POS',
-    providerReference: 'NIBSS_POS_992104',
-    productName: 'IBEDC PREPAID MTR 0419283720',
-    recipient: '0419283720',
-    metadata: {
-      narration: 'Agency POS direct recharge for IBEDC electricity meter',
-      terminalId: '2033KAN1',
-    },
-    createdAt: '2026-03-25T13:10:00Z',
-    completedAt: '2026-03-25T13:10:05Z',
-  },
-  {
-    id: 'tx_3pa_uncat_102',
-    reference: '3PA-VTU-20260325-4491',
-    idempotencyKey: 'idem_uncat_4491',
-    userId: 'usr_3plea_demo_01',
-    userName: 'Aliyu Mohammed Kano',
-    userPhone: '+234 803 123 4567',
-    type: 'uncategorized',
-    category: 'Uncategorized',
-    isUncategorized: true,
-    amount: 3000,
-    fee: 0,
-    discount: 0,
-    totalDebited: 3000,
-    status: 'successful',
-    provider: 'Interswitch WebPAY',
-    providerReference: 'ISW_TX_381920',
-    productName: 'AIRTIME AUTO RECHARGE MTN 08031234567',
-    recipient: '08031234567',
-    metadata: {
-      narration: 'Automated VTU airtime topup via card direct debit',
-      operator: 'MTN',
-    },
-    createdAt: '2026-03-25T14:45:00Z',
-    completedAt: '2026-03-25T14:45:02Z',
-  },
-  {
-    id: 'tx_3pa_uncat_103',
-    reference: '3PA-PAY-20260325-6672',
-    idempotencyKey: 'idem_uncat_6672',
-    userId: 'usr_3plea_demo_01',
-    userName: 'Aliyu Mohammed Kano',
-    userPhone: '+234 803 123 4567',
-    type: 'uncategorized',
-    category: 'Uncategorized',
-    isUncategorized: true,
-    amount: 19800,
-    fee: 0,
-    discount: 0,
-    totalDebited: 19800,
-    status: 'successful',
-    provider: 'Quickteller Paypoint',
-    providerReference: 'QT_PAY_771924',
-    productName: 'MULTICHOICE DSTV COMPACT PLUS',
-    recipient: 'IUC 4102938471',
-    metadata: {
-      narration: 'Pay TV Cable Subscription MultiChoice DSTV decoder renewal',
-      bouquet: 'Compact Plus',
-    },
-    createdAt: '2026-03-25T16:20:00Z',
-    completedAt: '2026-03-25T16:20:04Z',
-  },
-  {
-    id: 'tx_3pa_uncat_104',
-    reference: '3PA-REMITA-20260325-1102',
-    idempotencyKey: 'idem_uncat_1102',
-    userId: 'usr_3plea_demo_01',
-    userName: 'Aliyu Mohammed Kano',
-    userPhone: '+234 803 123 4567',
-    type: 'uncategorized',
-    category: 'Uncategorized',
-    isUncategorized: true,
-    amount: 95000,
-    fee: 500,
-    discount: 0,
-    totalDebited: 95500,
-    status: 'successful',
-    provider: 'Remita Central',
-    providerReference: 'RRR_9918237461',
-    productName: 'BUK UNDERGRAD ACCEPTANCE REGISTRATION',
-    recipient: 'BUK/UG/2026/9102',
-    metadata: {
-      narration: 'Bayero University Kano undergraduate school session registration fees',
-      institution: 'BUK',
-    },
-    createdAt: '2026-03-25T17:05:00Z',
-    completedAt: '2026-03-25T17:05:08Z',
-  },
-];
+export const INITIAL_UNCATEGORIZED_TRANSACTIONS: Transaction[] = [];
 
 export function deduplicateTransactions(txs: Transaction[]): Transaction[] {
   if (!Array.isArray(txs)) return [];
@@ -1015,11 +911,8 @@ export function deduplicateTransactions(txs: Transaction[]): Transaction[] {
   return result;
 }
 
-// Immutable combined initial transactions
-export const ALL_INITIAL_TRANSACTIONS: Transaction[] = deduplicateTransactions([
-  ...INITIAL_TRANSACTIONS,
-  ...INITIAL_UNCATEGORIZED_TRANSACTIONS,
-]);
+// Immutable initial transactions
+export const ALL_INITIAL_TRANSACTIONS: Transaction[] = deduplicateTransactions(INITIAL_TRANSACTIONS);
 
 export const INITIAL_LEDGER: LedgerEntry[] = [
   {
@@ -1220,6 +1113,88 @@ export const INITIAL_SCHEDULED_PAYMENTS: ScheduledPayment[] = [
   },
 ];
 
+export const INITIAL_REFERRALS: ReferralRecord[] = [
+  {
+    id: 'ref_rec_001',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_ibrahim_k',
+    referredName: 'Ibrahim Khalil Bello',
+    referredPhoneMasked: '+234 802 ••• 4419',
+    referredEmailMasked: 'ib***@gmail.com',
+    signupDate: '2026-03-24T11:20:00Z',
+    status: 'completed',
+    rewardAmount: 750,
+    rewardClaimed: true,
+    claimedAt: '2026-03-24T16:00:00Z',
+    firstTransactionSummary: 'MTN 10GB Data Bundle (₦2,900)',
+  },
+  {
+    id: 'ref_rec_002',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_fatima_u',
+    referredName: 'Fatima Umar Ganduje',
+    referredPhoneMasked: '+234 813 ••• 9021',
+    referredEmailMasked: 'fa***@yahoo.com',
+    signupDate: '2026-03-25T09:45:00Z',
+    status: 'completed',
+    rewardAmount: 750,
+    rewardClaimed: false,
+    firstTransactionSummary: 'KEDCO Prepaid Power Token ₦10,000',
+  },
+  {
+    id: 'ref_rec_003',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_musa_d',
+    referredName: 'Musa Danladi Tarauni',
+    referredPhoneMasked: '+234 905 ••• 1822',
+    referredEmailMasked: 'mu***@outlook.com',
+    signupDate: '2026-03-26T14:10:00Z',
+    status: 'completed',
+    rewardAmount: 1000,
+    rewardClaimed: false,
+    firstTransactionSummary: 'Max Air Flight Reservation Kano-Abuja',
+  },
+  {
+    id: 'ref_rec_004',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_aisha_y',
+    referredName: 'Aisha Yusuf Bichi',
+    referredPhoneMasked: '+234 703 ••• 8812',
+    referredEmailMasked: 'ai***@gmail.com',
+    signupDate: '2026-03-27T16:30:00Z',
+    status: 'completed',
+    rewardAmount: 750,
+    rewardClaimed: false,
+    firstTransactionSummary: 'Airtel Airtime VTU ₦3,000',
+  },
+  {
+    id: 'ref_rec_005',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_sani_g',
+    referredName: 'Sani Garba Wudil',
+    referredPhoneMasked: '+234 806 ••• 3341',
+    referredEmailMasked: 'sa***@gmail.com',
+    signupDate: '2026-03-28T08:15:00Z',
+    status: 'pending_first_transaction',
+    rewardAmount: 750,
+    rewardClaimed: false,
+    firstTransactionSummary: 'Registered · KYC Tier 1 pending initial wallet funding',
+  },
+  {
+    id: 'ref_rec_006',
+    referrerId: 'usr_3plea_demo_01',
+    referredUserId: 'usr_ref_amina_h',
+    referredName: 'Amina Habibu Nassarawa',
+    referredPhoneMasked: '+234 812 ••• 7762',
+    referredEmailMasked: 'am***@gmail.com',
+    signupDate: '2026-03-28T12:40:00Z',
+    status: 'pending_first_transaction',
+    rewardAmount: 750,
+    rewardClaimed: false,
+    firstTransactionSummary: 'Registered · Awaiting first transaction of min ₦500',
+  },
+];
+
 export interface AppState {
   currentUser: User;
   users: User[];
@@ -1241,6 +1216,7 @@ export interface AppState {
   priceAlerts: PriceAlert[];
   flightPriceAlerts?: FlightRoutePriceAlert[];
   scheduledPayments: ScheduledPayment[];
+  referrals: ReferralRecord[];
 }
 
 export function loadAppState(): AppState {
@@ -1255,6 +1231,7 @@ export function loadAppState(): AppState {
         providers: parsed.providers || INITIAL_PROVIDERS,
         priceAlerts: parsed.priceAlerts || INITIAL_PRICE_ALERTS,
         flightPriceAlerts: parsed.flightPriceAlerts || INITIAL_FLIGHT_PRICE_ALERTS,
+        referrals: parsed.referrals || INITIAL_REFERRALS,
         users: (() => {
           if (parsed.users && Array.isArray(parsed.users) && parsed.users.length > 0) {
             const map = new Map<string, User>();
@@ -1285,16 +1262,7 @@ export function loadAppState(): AppState {
             parsed.transactions && Array.isArray(parsed.transactions) && parsed.transactions.length > 0
               ? parsed.transactions
               : ALL_INITIAL_TRANSACTIONS;
-          const deduped = deduplicateTransactions(rawTxs);
-          const existingIds = new Set(deduped.map((t: Transaction) => t.id));
-          const missingUncat = INITIAL_UNCATEGORIZED_TRANSACTIONS.filter((u) => !existingIds.has(u.id));
-          const hasAnyUncat = deduped.some(
-            (t: Transaction) => t.isUncategorized || t.type === 'uncategorized'
-          );
-          if (!hasAnyUncat && missingUncat.length > 0) {
-            return deduplicateTransactions([...missingUncat, ...deduped]);
-          }
-          return deduped;
+          return deduplicateTransactions(rawTxs);
         })(),
       };
     }
@@ -1386,6 +1354,7 @@ export function loadAppState(): AppState {
     priceAlerts: INITIAL_PRICE_ALERTS,
     flightPriceAlerts: INITIAL_FLIGHT_PRICE_ALERTS,
     scheduledPayments: INITIAL_SCHEDULED_PAYMENTS,
+    referrals: INITIAL_REFERRALS,
   };
 
   saveAppState(defaultState);

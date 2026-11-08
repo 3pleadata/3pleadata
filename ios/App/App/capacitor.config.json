@@ -1,0 +1,14 @@
+{
+	"appId": "com.threepleadata.app",
+	"appName": "3PLE A",
+	"webDir": "dist",
+	"plugins": {
+		"StatusBar": {
+			"overlaysWebView": false
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"StatusBarPlugin"
+	]
+}

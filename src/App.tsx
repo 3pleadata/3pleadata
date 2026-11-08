@@ -24,6 +24,7 @@ import { SupportPage } from './pages/SupportPage';
 import { ScheduledPaymentsPage } from './pages/ScheduledPaymentsPage';
 import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
+import { ReferralProgramPage } from './pages/ReferralProgramPage';
 
 
 import { DoubleEntryLedgerEngine } from './services/ledger';
@@ -604,6 +605,15 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'referrals' && (
+            <ReferralProgramPage
+              state={state}
+              updateState={updateState}
+              language={language}
+              onOpenFundModal={handleOpenFundModal}
+            />
+          )}
+
 
           {/* Universal Footer with Legal & Regulatory Disclosures */}
           <footer className="mt-12 pt-8 pb-4 border-t border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs">
@@ -658,6 +668,13 @@ export default function App() {
                   className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-medium"
                 >
                   Sign In / Account Portal
+                </button>
+                <span>·</span>
+                <button
+                  onClick={() => handleNavigateTab('referrals')}
+                  className="hover:text-amber-600 dark:hover:text-amber-400 underline-offset-4 hover:underline transition-colors font-semibold text-amber-600 dark:text-amber-400"
+                >
+                  Refer & Earn (₦1,200)
                 </button>
               </div>
 

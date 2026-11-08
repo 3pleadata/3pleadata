@@ -429,3 +429,27 @@ export interface ScheduledPayment {
   note?: string;
 }
 
+export interface ReferralRecord {
+  id: string;
+  referrerId: string;
+  referredUserId: string;
+  referredName: string;
+  referredPhoneMasked: string;
+  referredEmailMasked: string;
+  signupDate: string;
+  status: 'completed' | 'pending_first_transaction';
+  rewardAmount: number;
+  rewardClaimed: boolean;
+  claimedAt?: string;
+  firstTransactionSummary?: string;
+}
+
+export interface ReferralTier {
+  level: number;
+  name: string;
+  minReferrals: number;
+  rewardPerSignup: number;
+  commissionBonusRate: number;
+  badgeColor: string;
+}
+

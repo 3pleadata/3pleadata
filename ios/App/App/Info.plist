@@ -66,5 +66,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>3PLE A uses Face ID and Touch ID for rapid, biometric-verified transaction authorizations and secure wallet access.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>3PLE A requires access to your camera to scan peer-to-peer payment QR codes and utility invoice barcodes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>3PLE A needs access to your photos to save, export, and upload financial transaction receipts and payment proofs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>3PLE A saves generated PDF/PNG transaction receipts and invoices to your photo library.</string>
 </dict>
 </plist>

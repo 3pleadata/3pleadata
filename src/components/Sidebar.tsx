@@ -19,6 +19,7 @@ import {
   CalendarClock,
   Scale,
   LogIn,
+  Gift,
 } from 'lucide-react';
 
 import { Language, t } from '../services/i18n';
@@ -92,6 +93,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'retailer',
       label: t('navRetailerHub', language),
       icon: Store,
+    },
+    {
+      id: 'referrals',
+      label: t('navReferrals', language),
+      icon: Gift,
     },
     {
       id: 'developers',
