@@ -19,6 +19,7 @@ import {
   CalendarClock,
   Scale,
   LogIn,
+  LogOut,
   Gift,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ interface SidebarProps {
   onClose: () => void;
   language: Language;
   onOpenFundModal: () => void;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -42,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   language,
   onOpenFundModal,
+  onLogout,
 }) => {
   const navItems = [
     {
@@ -125,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   if (currentUser.role === 'administrator' || currentUser.role === 'super_admin') {
     navItems.push({
       id: 'admin',
-      label: t('navAdmin', language),
+      label: language === 'ha' ? '⚡ Standalone Super Admin' : '⚡ Standalone Super Admin',
       icon: ShieldAlert,
     });
   }
@@ -224,6 +227,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             );
           })}
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={() => {
+                onLogout();
+                onClose();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60 mt-2"
+            >
+              <LogOut className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{language === 'ha' ? 'Fita Daga Asusu (Log Out)' : 'Sign Out / Log Out'}</span>
+            </button>
+          )}
         </div>
 
         {/* Kano Business Address Footer */}

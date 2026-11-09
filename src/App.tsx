@@ -25,6 +25,8 @@ import { ScheduledPaymentsPage } from './pages/ScheduledPaymentsPage';
 import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
 import { ReferralProgramPage } from './pages/ReferralProgramPage';
+import { SuperAdminStandaloneLayout } from './components/SuperAdminStandaloneLayout';
+import { ShieldAlert } from 'lucide-react';
 
 
 import { DoubleEntryLedgerEngine } from './services/ledger';
@@ -64,6 +66,16 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(getStoredLanguage);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const session = localStorage.getItem('3plea_auth_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        return parsed && parsed.isAuthenticated === true;
+      }
+    } catch {}
+    return false;
+  });
 
   const handleSetLanguage = (newLang: Language) => {
     setLanguage(newLang);
@@ -428,8 +440,98 @@ export default function App() {
     updateState({ currentUser: newUser });
   };
 
+  const handleAuthenticate = (user: User, defaultTab?: string) => {
+    try {
+      localStorage.setItem(
+        '3plea_auth_session',
+        JSON.stringify({ isAuthenticated: true, userId: user.id })
+      );
+    } catch {}
+    setIsAuthenticated(true);
+    updateState({ currentUser: user });
+    setActiveTab(defaultTab || (user.role === 'super_admin' ? 'admin' : 'dashboard'));
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('3plea_auth_session');
+    } catch {}
+    setIsAuthenticated(false);
+    setActiveTab('login');
+  };
+
+  // Enforced Registration & Authentication Gate:
+  // "Ba wanda zai iya shiga sai ya yi rigista. Customer daban Super Admin daban"
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-150">
+        <LoginPage
+          state={state}
+          updateState={updateState}
+          setActiveTab={handleNavigateTab}
+          language={language}
+          onSwitchLanguage={() => handleSetLanguage(language === 'en' ? 'ha' : 'en')}
+          onOpenFundModal={handleOpenFundModal}
+          onAuthenticate={handleAuthenticate}
+          onLogout={handleLogout}
+          isAuthenticated={false}
+        />
+      </div>
+    );
+  }
+
+  // Super Admin Standalone Execution Mode:
+  // When an authorized Super Admin is in 'admin' mode, render the completely
+  // isolated, standalone executive console with dedicated navigation, telemetry,
+  // and ledger tools, without any customer sidebar or customer widgets.
+  if (
+    isAuthenticated &&
+    (state.currentUser.role === 'super_admin' || state.currentUser.role === 'administrator') &&
+    activeTab === 'admin'
+  ) {
+    return (
+      <SuperAdminStandaloneLayout
+        state={state}
+        updateState={updateState}
+        onViewReceipt={(tx) => setSelectedReceiptTx(tx)}
+        language={language}
+        onSwitchLanguage={() => handleSetLanguage(language === 'en' ? 'ha' : 'en')}
+        onLogout={handleLogout}
+        onPreviewCustomerApp={() => handleNavigateTab('dashboard')}
+        isBiometricUnlocked={isBiometricSessionValid('admin_dashboard')}
+        onRequestBiometricUnlock={() =>
+          handleRequestBiometric('admin_dashboard', () => {
+            setActiveTab('admin');
+          })
+        }
+        onLockBiometric={handleLockBiometrics}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
+      {/* Super Admin Customer Preview Notification Banner */}
+      {state.currentUser.role === 'super_admin' && (
+        <div className="sticky top-0 z-50 bg-amber-400 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-md border-b border-amber-500">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-slate-950 shrink-0" />
+            <span>
+              {language === 'ha'
+                ? 'Yanayin Gwajin Super Admin: Kuna duba manhajar abokan ciniki ne a halin yanzu.'
+                : 'Super Admin Preview Mode: Viewing the customer-facing interface.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleNavigateTab('admin')}
+            className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 font-mono text-[11px] rounded-lg transition-colors flex items-center gap-1 shadow-xs"
+          >
+            <span>{language === 'ha' ? 'Koma Standalone Admin Console →' : 'Return to Standalone Super Admin →'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Top Bar Header */}
       <Header
         currentUser={state.currentUser}
@@ -461,6 +563,7 @@ export default function App() {
           onClose={() => setSidebarOpen(false)}
           language={language}
           onOpenFundModal={handleOpenFundModal}
+          onLogout={handleLogout}
         />
 
         {/* Main Content Viewport */}
@@ -558,21 +661,48 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'admin' && (
-            <AdminDashboard
-              state={state}
-              updateState={updateState}
-              onViewReceipt={(tx) => setSelectedReceiptTx(tx)}
-              language={language}
-              isBiometricUnlocked={isBiometricSessionValid('admin_dashboard')}
-              onRequestBiometricUnlock={() =>
-                handleRequestBiometric('admin_dashboard', () => {
-                  setActiveTab('admin');
-                })
-              }
-              onLockBiometric={handleLockBiometrics}
-            />
-          )}
+          {activeTab === 'admin' &&
+            (state.currentUser.role === 'super_admin' || state.currentUser.role === 'administrator' ? (
+              <AdminDashboard
+                state={state}
+                updateState={updateState}
+                onViewReceipt={(tx) => setSelectedReceiptTx(tx)}
+                language={language}
+                isBiometricUnlocked={isBiometricSessionValid('admin_dashboard')}
+                onRequestBiometricUnlock={() =>
+                  handleRequestBiometric('admin_dashboard', () => {
+                    setActiveTab('admin');
+                  })
+                }
+                onLockBiometric={handleLockBiometrics}
+              />
+            ) : (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-rose-200 dark:border-rose-900/60 p-8 text-center space-y-4 max-w-lg mx-auto my-12 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+                  <ShieldAlert className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    {language === 'ha'
+                      ? 'Ba ka da Hurumin Babban Darakta (Super Admin)'
+                      : 'Super Admin Access Restricted'}
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
+                    {language === 'ha'
+                      ? 'Wannan sashe na musamman ne ga shugabannin kamfanin 3PLE A DATA. Asusunka na abokin ciniki (Customer) ba zai iya shiga nan ba.'
+                      : 'This section is strictly restricted to authorized 3PLE A platform executives. Customer accounts cannot access internal financial controls.'}
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className="px-5 py-2.5 bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-950 font-bold text-xs rounded-xl shadow-xs hover:opacity-90 transition-opacity"
+                  >
+                    {language === 'ha' ? 'Koma Shafin Abokin Ciniki' : 'Return to Customer Dashboard'}
+                  </button>
+                </div>
+              </div>
+            ))}
 
           {activeTab === 'developers' && (
             <DeveloperPortal state={state} language={language} />
@@ -602,6 +732,9 @@ export default function App() {
               language={language}
               onSwitchLanguage={() => handleSetLanguage(language === 'en' ? 'ha' : 'en')}
               onOpenFundModal={handleOpenFundModal}
+              onAuthenticate={handleAuthenticate}
+              onLogout={handleLogout}
+              isAuthenticated={true}
             />
           )}
 
