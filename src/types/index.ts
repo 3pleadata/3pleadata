@@ -11,6 +11,7 @@ export type UserRole =
 export interface User {
   id: string;
   name: string;
+  username?: string;
   email: string;
   phone: string;
   role: UserRole;
@@ -24,6 +25,10 @@ export interface User {
   apiWebhookUrl?: string;
   twoFactorEnabled: boolean;
   transactionPinSet: boolean;
+  password?: string;
+  transactionPin?: string;
+  stateOfOrigin?: string;
+  referredBy?: string;
   status: 'active' | 'pending_verification' | 'suspended' | 'restricted';
   createdAt: string;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppState } from '../services/storage';
 import { User, UserRole, LedgerEntry, NotificationItem } from '../types';
 import {
@@ -24,11 +24,16 @@ import {
   LogOut,
   UserCheck,
   UserPlus,
-  Briefcase,
   HelpCircle,
   Globe,
+  MessageSquare,
+  Download,
+  Smartphone,
+  Radio,
+  AtSign,
+  ExternalLink,
 } from 'lucide-react';
-import { Language, t } from '../services/i18n';
+import { Language } from '../services/i18n';
 import {
   isHardwareBiometricAvailable,
   recordBiometricSuccess,
@@ -47,6 +52,24 @@ interface LoginPageProps {
   onLogout?: () => void;
   isAuthenticated?: boolean;
 }
+
+// Carrier prefix lookup for Nigerian telecommunications (BilalSadaSub standard)
+const getCarrierFromPhone = (phone: string): { name: string; color: string; badge: string } | null => {
+  const clean = phone.replace(/[^0-9]/g, '');
+  const prefix = clean.startsWith('234') ? '0' + clean.slice(3, 6) : clean.slice(0, 4);
+  if (!prefix || prefix.length < 4) return null;
+
+  const mtn = ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913', '0916'];
+  const airtel = ['0802', '0808', '0708', '0812', '0701', '0902', '0901', '0904', '0907', '0912'];
+  const glo = ['0805', '0807', '0705', '0815', '0811', '0905', '0915'];
+  const nineMobile = ['0809', '0817', '0818', '0909', '0908'];
+
+  if (mtn.includes(prefix)) return { name: 'MTN Nigeria', color: 'bg-amber-400 text-slate-950', badge: 'MTN' };
+  if (airtel.includes(prefix)) return { name: 'Airtel Nigeria', color: 'bg-rose-600 text-white', badge: 'Airtel' };
+  if (glo.includes(prefix)) return { name: 'Glo Nigeria', color: 'bg-emerald-600 text-white', badge: 'Glo' };
+  if (nineMobile.includes(prefix)) return { name: '9mobile', color: 'bg-lime-600 text-white', badge: '9mobile' };
+  return null;
+};
 
 export const LoginPage: React.FC<LoginPageProps> = ({
   state,
@@ -71,26 +94,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   });
   const [activePortal, setActivePortal] = useState<'customer' | 'super_admin'>('customer');
 
-  // Customer sub-modes: 'register' | 'signin' | 'phone_pin'
-  const [customerAuthMode, setCustomerAuthMode] = useState<'register' | 'signin' | 'phone_pin'>('register');
+  // Customer sub-modes: 'signin' | 'register' | 'phone_pin'
+  const [customerAuthMode, setCustomerAuthMode] = useState<'signin' | 'register' | 'phone_pin'>('signin');
 
   // Feedback state
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Customer Sign In state
+  // Customer Sign In state (Username, Phone, or Email as on BilalSadaSub)
   const [custIdentifier, setCustIdentifier] = useState('');
   const [custPassword, setCustPassword] = useState('');
   const [showCustPassword, setShowCustPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Customer Registration state
+  // Customer Registration state (Full BilalSadaSub registration suite)
   const [regName, setRegName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regRole, setRegRole] = useState<'customer' | 'retailer' | 'agent'>('customer');
   const [regState, setRegState] = useState('Kano State');
   const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [regPin, setRegPin] = useState('1234');
   const [regReferral, setRegReferral] = useState('');
   const [regTerms, setRegTerms] = useState(true);
@@ -105,50 +132,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [adminSecurityKey, setAdminSecurityKey] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  // Forgot password state
+  // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotTarget, setForgotTarget] = useState('');
   const [forgotStep, setForgotStep] = useState<'input' | 'otp' | 'success'>('input');
   const [forgotOtp, setForgotOtp] = useState('');
 
-  // Quick Customer Profiles (Alhaji Musa & Fatima)
-  const customerDemoProfiles = [
-    {
-      name: 'Alhaji Musa Sulaiman',
-      email: 'musa.sulaiman@gmail.com',
-      phone: '+234 802 334 5566',
-      role: 'customer' as UserRole,
-      roleTitle: 'Verified Customer',
-      balance: 85000,
-      description: 'Individual retail user purchasing KEDCO electricity tokens, SME data & domestic flights.',
-      badgeColor: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-300/40',
-      icon: UserIcon,
-    },
-    {
-      name: 'Fatima Aminu Zaria (Sub Hub)',
-      email: 'fatima.zaria@subhub.ng',
-      phone: '+234 813 456 7890',
-      role: 'retailer' as UserRole,
-      roleTitle: 'Wholesale VTU Reseller',
-      balance: 620000,
-      description: 'Telecom reseller managing high-volume MTN, Airtel, and Glo data distributions.',
-      badgeColor: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-300/40',
-      icon: Store,
-    },
-  ];
-
-  // Super Admin Demo Profile
-  const superAdminDemoProfile = {
-    name: 'Aliyu Mohammed Kano',
-    email: '3pleadata@gmail.com',
-    phone: '+234 803 123 4567',
-    role: 'super_admin' as UserRole,
-    roleTitle: 'Super Administrator',
-    balance: 450000,
-    description: 'Platform executive, double-entry ledger auditor, and bank clearing supervisor.',
-    badgeColor: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-300/40',
-    icon: ShieldAlert,
-  };
+  // Telecom carrier detection for phone inputs
+  const regCarrier = useMemo(() => getCarrierFromPhone(regPhone), [regPhone]);
+  const pinCarrier = useMemo(() => getCarrierFromPhone(pinPhone), [pinPhone]);
+  const loginCarrier = useMemo(() => getCarrierFromPhone(custIdentifier), [custIdentifier]);
 
   // Helper to complete authentication and route to the right screen
   const completeAuth = (user: User, defaultTab: string, successMsg: string) => {
@@ -168,13 +161,50 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   // 1. Customer Registration Handler
   const handleCustomerRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regName.trim() || !regEmail.trim() || !regPhone.trim() || !regPassword.trim() || !regPin.trim()) {
+
+    if (!regName.trim() || !regUsername.trim() || !regEmail.trim() || !regPhone.trim() || !regPassword.trim() || !regConfirmPassword.trim() || !regPin.trim()) {
       setFeedback({
         type: 'error',
         message:
           language === 'ha'
             ? 'Da fatan za a cika dukkan bayanan da ake buƙata don buɗe asusu.'
             : 'Please fill in all required registration fields.',
+      });
+      return;
+    }
+
+    // Username validation (alphanumeric, min 3 chars)
+    const cleanUsername = regUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (cleanUsername.length < 3) {
+      setFeedback({
+        type: 'error',
+        message:
+          language === 'ha'
+            ? 'Sunan mai amfani (Username) dole ya kasance haruffa ko lambobi akalla guda 3.'
+            : 'Username must be at least 3 characters (letters, numbers, or underscore).',
+      });
+      return;
+    }
+
+    // Password matching validation (standard on BilalSadaSub)
+    if (regPassword !== regConfirmPassword) {
+      setFeedback({
+        type: 'error',
+        message:
+          language === 'ha'
+            ? 'Kalmomin sirri guda biyu ba su yi daidai ba. Da fatan za a sake dubawa.'
+            : 'Password and Confirm Password do not match. Please verify.',
+      });
+      return;
+    }
+
+    if (regPassword.length < 6) {
+      setFeedback({
+        type: 'error',
+        message:
+          language === 'ha'
+            ? 'Kalmar sirri dole ta kasance a kalla haruffa ko lambobi 6.'
+            : 'Password must be at least 6 characters long.',
       });
       return;
     }
@@ -195,17 +225,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         type: 'error',
         message:
           language === 'ha'
-            ? 'Dole ne ka amince da sharuɗɗan tsaro da dokokin NDPA & CBN.'
+            ? 'Dole ne ka amince da sharuɗɗan tsaro da dokokin NDPA 2023 & CBN.'
             : 'Please accept the NDPA privacy terms & conditions to proceed.',
       });
       return;
     }
 
-    // Check if phone or email is already registered
+    // Check if username, phone, or email is already registered
     const cleanEmail = regEmail.trim().toLowerCase();
     const cleanPhone = regPhone.trim().replace(/[\s-]/g, '');
     const existing = users.find(
       (u) =>
+        (u.username && u.username.toLowerCase() === cleanUsername) ||
         u.email.toLowerCase() === cleanEmail ||
         u.phone.replace(/[\s-]/g, '') === cleanPhone
     );
@@ -215,11 +246,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         type: 'error',
         message:
           language === 'ha'
-            ? 'Wannan imel ko lambar wayar an riga an yi rijista da ita. Da fatan za a shiga asusu.'
-            : 'An account with this email or phone number already exists. Please sign in instead.',
+            ? 'Wannan sunan mai amfani (Username), imel ko lambar wayar an riga an yi rijista da ita. Da fatan za a shiga asusu.'
+            : 'An account with this username, email or phone number already exists. Please sign in instead.',
       });
       setCustomerAuthMode('signin');
-      setCustIdentifier(cleanEmail);
+      setCustIdentifier(cleanUsername || cleanEmail);
       return;
     }
 
@@ -231,6 +262,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       const newUser: User = {
         id: `usr_cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         name: regName.trim(),
+        username: cleanUsername,
         email: cleanEmail,
         phone: regPhone.trim(),
         role: regRole,
@@ -242,6 +274,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         ninVerified: true,
         twoFactorEnabled: false,
         transactionPinSet: true,
+        password: regPassword,
+        transactionPin: regPin,
+        stateOfOrigin: regState,
+        referredBy: regReferral.trim() || undefined,
         status: 'active',
         createdAt: new Date().toISOString(),
       };
@@ -254,7 +290,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         creditAccount: 'LIABILITY:CUSTOMER_WALLET',
         amount: welcomeBonusAmount,
         currency: 'NGN',
-        narration: `Promotional Welcome Bonus credited upon registration for ${newUser.name}`,
+        narration: `Promotional Welcome Bonus credited upon registration for ${newUser.name} (@${newUser.username})`,
       };
 
       const welcomeNotif: NotificationItem = {
@@ -263,8 +299,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         title: language === 'ha' ? 'Barka da Zuwa 3PLE A DATA!' : 'Welcome to 3PLE A DATA!',
         message:
           language === 'ha'
-            ? `An buɗe asusunka cikin nasara tare da ₦${welcomeBonusAmount.toLocaleString()} kyautar maraba a walat ɗinka.`
-            : `Your account is ready with a ₦${welcomeBonusAmount.toLocaleString()} promotional welcome bonus in your wallet.`,
+            ? `An buɗe asusunka cikin nasara tare da ₦${welcomeBonusAmount.toLocaleString()} kyautar maraba a walat ɗinka. Sunan mai amfani: @${newUser.username}`
+            : `Your account is ready with a ₦${welcomeBonusAmount.toLocaleString()} promotional welcome bonus. Username: @${newUser.username}`,
         type: 'system',
         read: false,
         createdAt: new Date().toISOString(),
@@ -282,14 +318,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       const successMsg =
         language === 'ha'
-          ? `An buɗe asusunka cikin nasara! Barka da zuwa 3PLE A, ${newUser.name}.`
-          : `Registration successful! Welcome to 3PLE A, ${newUser.name}. ₦2,500 bonus credited.`;
+          ? `An buɗe asusunka cikin nasara! Barka da zuwa 3PLE A, ${newUser.name} (@${newUser.username}).`
+          : `Registration successful! Welcome to 3PLE A, ${newUser.name} (@${newUser.username}). ₦2,500 bonus credited.`;
 
       completeAuth(newUser, 'dashboard', successMsg);
     }, 600);
   };
 
-  // 2. Customer Sign In Handler
+  // 2. Customer Sign In Handler (Matches Username, Email, OR Phone)
   const handleCustomerSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (!custIdentifier.trim() || !custPassword.trim()) {
@@ -297,8 +333,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         type: 'error',
         message:
           language === 'ha'
-            ? 'Shigar da imel/lambar waya da kuma kalmar sirri.'
-            : 'Please enter your registered email or phone and password.',
+            ? 'Shigar da sunan mai amfani (Username), imel ko lambar waya da kuma kalmar sirri.'
+            : 'Please enter your username, email, or phone number and password.',
       });
       return;
     }
@@ -308,10 +344,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     setTimeout(() => {
       const cleanId = custIdentifier.trim().toLowerCase();
+      const cleanPhone = custIdentifier.trim().replace(/[\s-]/g, '');
+
       const matched = users.find(
         (u) =>
+          (u.username && u.username.toLowerCase() === cleanId) ||
           u.email.toLowerCase() === cleanId ||
-          u.phone.replace(/[\s-]/g, '') === cleanId.replace(/[\s-]/g, '')
+          u.phone.replace(/[\s-]/g, '') === cleanPhone ||
+          u.phone.replace(/[^0-9]/g, '').includes(cleanPhone.slice(-10))
       );
 
       // "Ba wanda zai iya shiga sai ya yi rigista"
@@ -327,11 +367,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         return;
       }
 
+      // Check password if set on user, otherwise accept for existing demo seed records
+      if (matched.password && matched.password !== custPassword.trim()) {
+        setLoading(false);
+        setFeedback({
+          type: 'error',
+          message:
+            language === 'ha'
+              ? 'Kalmar sirri ba daidai ba ce. Da fatan za a sake dubawa ko danna "Manta Kalmar Sirri".'
+              : 'Invalid password. Please check your credentials or click "Forgot Password".',
+        });
+        return;
+      }
+
       // If trying to sign into super admin from customer portal, reveal the hidden super admin portal
       if (matched.role === 'super_admin' || matched.role === 'administrator') {
         setShowAdminPortal(true);
         setActivePortal('super_admin');
-        setAdminIdentifier(cleanId);
+        setAdminIdentifier(matched.email);
         setLoading(false);
         setFeedback({
           type: 'success',
@@ -385,6 +438,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         return;
       }
 
+      // Check PIN if set
+      if (matched.transactionPin && matched.transactionPin !== pinCode.trim()) {
+        setLoading(false);
+        setFeedback({
+          type: 'error',
+          message:
+            language === 'ha'
+              ? 'Lambar PIN ba daidai ba ce. Da fatan za a sake dubawa.'
+              : 'Incorrect transaction PIN entered. Please try again.',
+        });
+        return;
+      }
+
       const successMsg =
         language === 'ha'
           ? `An amince da lambar PIN! Barka da zuwa, ${matched.name}.`
@@ -413,27 +479,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     setTimeout(() => {
       const cleanId = adminIdentifier.trim().toLowerCase();
-      // Match super admin account from users or default
       const matchedAdmin = users.find(
         (u) =>
-          (u.email.toLowerCase() === cleanId || u.phone.replace(/[\s-]/g, '') === cleanId.replace(/[\s-]/g, '')) &&
+          (u.email.toLowerCase() === cleanId ||
+            (u.username && u.username.toLowerCase() === cleanId) ||
+            u.phone.replace(/[\s-]/g, '') === cleanId.replace(/[\s-]/g, '')) &&
           (u.role === 'super_admin' || u.role === 'administrator')
       );
 
-      // Verify security key if provided or check default master
+      // Verify master password & security key
+      const validPass =
+        adminPassword.trim() === '3PLEA_ROOT_2026!' ||
+        adminPassword.trim() === 'admin' ||
+        (matchedAdmin && matchedAdmin.password === adminPassword.trim());
+
       const validKey =
         !adminSecurityKey.trim() ||
         adminSecurityKey.trim().toUpperCase() === '3PLEA-ADMIN-2026' ||
         adminSecurityKey.trim() === '123456';
 
-      if (!validKey) {
+      if (!validPass || !validKey) {
         setLoading(false);
         setFeedback({
           type: 'error',
           message:
             language === 'ha'
-              ? 'Lambar Tsaro (Master Key) ba daidai ba ce. An ƙi amincewa da shiga.'
-              : 'Invalid Super Admin Master Security Passcode. Access denied.',
+              ? 'Kalmar sirri ko Lambar Tsaro (Master Passcode) ba daidai ba ce. An ƙi amincewa da shiga.'
+              : 'Invalid Super Admin Master Password or Security Passcode. Access denied.',
         });
         return;
       }
@@ -442,6 +514,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         matchedAdmin || {
           id: 'usr_super_admin_01',
           name: 'Aliyu Mohammed Kano',
+          username: 'admin',
           email: '3pleadata@gmail.com',
           phone: '+234 803 123 4567',
           role: 'super_admin',
@@ -455,6 +528,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           apiWebhookUrl: 'https://webhook.site/demo-3plea',
           twoFactorEnabled: true,
           transactionPinSet: true,
+          password: 'admin',
+          transactionPin: '1234',
+          stateOfOrigin: 'Kano State',
           status: 'active',
           createdAt: '2026-01-15T08:00:00Z',
         };
@@ -466,47 +542,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       completeAuth(targetAdmin, 'admin', successMsg);
     }, 600);
-  };
-
-  // 5. 1-Click Fast Profile Login
-  const handleSelectDemoUser = (account: typeof superAdminDemoProfile) => {
-    setLoading(true);
-    setFeedback(null);
-
-    setTimeout(() => {
-      const matched = users.find(
-        (u) =>
-          u.email.toLowerCase() === account.email.toLowerCase() ||
-          u.phone === account.phone ||
-          u.name.toLowerCase() === account.name.toLowerCase()
-      );
-
-      const userToLogin: User = matched || {
-        id: `usr_${account.role}_${Date.now()}`,
-        name: account.name,
-        email: account.email,
-        phone: account.phone,
-        role: account.role,
-        walletBalance: account.balance,
-        bonusBalance: 5000,
-        commissionBalance: 12500,
-        kycLevel: 3,
-        bvnVerified: true,
-        ninVerified: true,
-        twoFactorEnabled: true,
-        transactionPinSet: true,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      };
-
-      const targetTab = account.role === 'super_admin' ? 'admin' : 'dashboard';
-      const successMsg =
-        language === 'ha'
-          ? `Barka da shigowa, ${account.name}! An tabbatar da asusunka.`
-          : `Session authenticated for ${account.name} (${account.roleTitle}).`;
-
-      completeAuth(userToLogin, targetTab, successMsg);
-    }, 400);
   };
 
   // Biometric Unlock
@@ -545,10 +580,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 sm:py-10 px-4 sm:px-6 flex flex-col justify-center">
-      <div className="max-w-4xl mx-auto w-full">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 sm:py-10 px-4 sm:px-6 flex flex-col justify-between">
+      <div className="max-w-2xl mx-auto w-full">
         {/* Top Header: Official Corporate Branding & Language Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-5 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <img
               src="/logo.png"
@@ -569,7 +604,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Karkasara Road, Tarauni LGA, Kano State · Registered Fintech & Utility Platform
+                Tarauni LGA, Kano State · Nigerian VTU & Automated Utility Platform
               </p>
             </div>
           </div>
@@ -600,28 +635,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         </div>
 
-        {/* Mandatory Registration / Authentication Enforced Notice Banner */}
-        {!isAuthenticated && (
-          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-400/40 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-extrabold text-sm">
-                {language === 'ha'
-                  ? 'Dole ne ka yi rijista ko shiga asusu kafin ka iya amfani da manhaja'
-                  : 'Authentication Required: No access to platform services without verified registration'}
-              </p>
-              <p className="mt-0.5 text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
-                {language === 'ha'
-                  ? 'Kowanne mai amfani (Customer) ko Babban Darakta (Super Admin) dole ne ya yi rijista ko ya shiga asusunsa na musamman don tsaro da dokokin CBN & NDPA.'
-                  : 'In compliance with CBN & NDPA regulations, customer services and executive administrative functions require verified credentials. Please register below or log into your account.'}
-              </p>
-            </div>
+        {/* Live VTU Status Notice Ticker (BilalSadaSub standard) */}
+        <div className="mb-5 px-3.5 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <Radio className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="truncate font-semibold">
+              {language === 'ha'
+                ? '🟢 Sabar VTU na aiki: MTN SME Data, Airtel, Glo, KEDCO da DStv suna sauka nan take 24/7.'
+                : '🟢 Live VTU Servers: MTN SME Data, Glo, Airtel, 9Mobile & KEDCO tokens instant delivery 24/7.'}
+            </span>
           </div>
-        )}
+          <a
+            href="https://wa.me/2348031234567?text=Assalamu%20Alaikum,%203PLE%20A%20DATA%20Support"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
+          >
+            <MessageSquare className="w-3 h-3 text-emerald-600" />
+            <span>{language === 'ha' ? 'Taimako' : 'Help'}</span>
+          </a>
+        </div>
 
         {/* Active Session Card if currently logged in */}
         {isAuthenticated && currentUser && (
-          <div className="mb-6 p-4 sm:p-5 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+          <div className="mb-5 p-4 sm:p-5 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
                 {currentUser.name
@@ -635,6 +673,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <span className="font-bold text-sm text-slate-900 dark:text-white">
                     {currentUser.name}
                   </span>
+                  {currentUser.username && (
+                    <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-bold">
+                      @{currentUser.username}
+                    </span>
+                  )}
                   <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
                     {currentUser.role.replace('_', ' ')}
                   </span>
@@ -672,12 +715,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         )}
 
-
-
         {/* Feedback message banner */}
         {feedback && (
           <div
-            className={`p-4 mb-6 rounded-2xl border text-xs flex items-center gap-3 shadow-xs ${
+            className={`p-4 mb-5 rounded-2xl border text-xs flex items-center gap-3 shadow-xs ${
               feedback.type === 'success'
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
                 : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
@@ -693,75 +734,202 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         )}
 
         {/* ========================================================= */}
-        {/* PORTAL 1: CUSTOMER PORTAL (REGISTRATION & SIGN IN)       */}
+        {/* PORTAL 1: CUSTOMER AUTHENTICATION (AUTHENTIC BILALSADASUB) */}
         {/* ========================================================= */}
         {(!showAdminPortal || activePortal === 'customer') && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left: Customer Form Card */}
-            <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl">
-              {/* Customer Mode Tabs: Register / Sign In / Quick PIN */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl mb-6 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerAuthMode('register');
-                    setFeedback(null);
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                    customerAuthMode === 'register'
-                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>{language === 'ha' ? 'Bude Sabon Asusu' : 'Register Customer'}</span>
-                </button>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl">
+            {/* BilalSadaSub Standard Clean Auth Tabs: Sign In / Register / Quick PIN */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl mb-6 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerAuthMode('signin');
+                  setFeedback(null);
+                }}
+                className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  customerAuthMode === 'signin'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>{language === 'ha' ? 'Shiga Asusu' : 'Customer Sign In'}</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerAuthMode('signin');
-                    setFeedback(null);
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                    customerAuthMode === 'signin'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>{language === 'ha' ? 'Shiga Asusu' : 'Customer Sign In'}</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerAuthMode('register');
+                  setFeedback(null);
+                }}
+                className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  customerAuthMode === 'register'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{language === 'ha' ? 'Buɗe Sabon Asusu' : 'Create Account'}</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerAuthMode('phone_pin');
-                    setFeedback(null);
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                    customerAuthMode === 'phone_pin'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>{language === 'ha' ? 'Lambar PIN' : 'Quick PIN'}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerAuthMode('phone_pin');
+                  setFeedback(null);
+                }}
+                className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  customerAuthMode === 'phone_pin'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{language === 'ha' ? 'Lambar PIN' : 'Express PIN'}</span>
+              </button>
+            </div>
 
-              {/* 1.A: CUSTOMER REGISTRATION */}
-              {customerAuthMode === 'register' && (
-                <form onSubmit={handleCustomerRegister} className="space-y-4">
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>
-                      {language === 'ha'
-                        ? 'Za a baka ₦2,500 kyautar maraba a walat ɗinka da zarar ka yi rijista!'
-                        : 'Instant ₦2,500 promotional welcome bonus automatically credited to your new wallet.'}
-                    </span>
+            {/* TAB 1: CUSTOMER SIGN IN (BilalSadaSub format) */}
+            {customerAuthMode === 'signin' && (
+              <form onSubmit={handleCustomerSignIn} className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {language === 'ha' ? 'Sunan Mai Amfani / Imel / Waya' : 'Username, Email, or Phone Number'} *
+                    </label>
+                    {loginCarrier && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${loginCarrier.color}`}>
+                        {loginCarrier.badge}
+                      </span>
+                    )}
                   </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <AtSign className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={custIdentifier}
+                      onChange={(e) => setCustIdentifier(e.target.value)}
+                      placeholder="e.g. musasulaiman or 08023345566 or user@gmail.com"
+                      className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {language === 'ha'
+                      ? 'Zaka iya shigar da Username dinka, lambar waya, ko kuma imel.'
+                      : 'You can sign in using your registered Username, Phone number, or Email.'}
+                  </p>
+                </div>
 
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {language === 'ha' ? 'Kalmar Sirri' : 'Password'} *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotModal(true)}
+                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    >
+                      {language === 'ha' ? 'Manta Kalmar Sirri?' : 'Forgot Password?'}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showCustPassword ? 'text' : 'password'}
+                      required
+                      value={custPassword}
+                      onChange={(e) => setCustPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCustPassword(!showCustPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      {showCustPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded text-emerald-500 focus:ring-emerald-400"
+                    />
+                    <span>{language === 'ha' ? 'Tuna da ni a wannan na\'ura' : 'Remember me on this device'}</span>
+                  </label>
+
+                  <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>SSL 256-Bit</span>
+                  </span>
+                </div>
+
+                <div className="pt-2 space-y-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {loading ? <RotateCcw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                    <span>{language === 'ha' ? 'Shiga Asusu' : 'Sign In to Account'}</span>
+                  </button>
+
+                  {isHardwareBiometricAvailable() && (
+                    <button
+                      type="button"
+                      onClick={handleBiometricQuickUnlock}
+                      disabled={loading}
+                      className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+                    >
+                      <ScanFace className="w-4 h-4 text-emerald-500" />
+                      <span>{language === 'ha' ? 'Shiga da FaceID / Yatsa' : 'Quick Unlock with Biometrics'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-center pt-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {language === 'ha' ? 'Ba ka da asusu tukuna?' : "Don't have an account yet?"}{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomerAuthMode('register');
+                        setFeedback(null);
+                      }}
+                      className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    >
+                      {language === 'ha' ? 'Yi Rijista Yanzu' : 'Register Here'}
+                    </button>
+                  </p>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 2: CUSTOMER REGISTRATION (BilalSadaSub Full Suite) */}
+            {customerAuthMode === 'register' && (
+              <form onSubmit={handleCustomerRegister} className="space-y-4">
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>
+                    {language === 'ha'
+                      ? 'Za a baka ₦2,500 kyautar maraba a walat ɗinka da zarar ka kammala rijista!'
+                      : 'Instant ₦2,500 promotional welcome bonus automatically credited to your new wallet.'}
+                  </span>
+                </div>
+
+                {/* Full Name & Username */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                       {language === 'ha' ? 'Cikakken Suna' : 'Full Legal Name'} *
@@ -781,271 +949,58 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'Imel' : 'Email Address'} *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <Mail className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="email"
-                          required
-                          value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
-                          placeholder="user@gmail.com"
-                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'Lambar Waya' : 'Phone Number'} *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <Phone className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="tel"
-                          required
-                          value={regPhone}
-                          onChange={(e) => setRegPhone(e.target.value)}
-                          placeholder="0803 123 4567"
-                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'Nau\'in Asusu' : 'Customer Account Type'} *
-                      </label>
-                      <select
-                        value={regRole}
-                        onChange={(e) => setRegRole(e.target.value as 'customer' | 'retailer' | 'agent')}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none"
-                      >
-                        <option value="customer">Personal Customer (VTU, Bills & Flights)</option>
-                        <option value="retailer">Retailer (Wholesale Telecom Reseller)</option>
-                        <option value="agent">POS Agent (Merchant Banking)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'Jiha' : 'State'} *
-                      </label>
-                      <select
-                        value={regState}
-                        onChange={(e) => setRegState(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none"
-                      >
-                        <option value="Kano State">Kano State (Tarauni / City)</option>
-                        <option value="Abuja FCT">Abuja FCT</option>
-                        <option value="Kaduna State">Kaduna State</option>
-                        <option value="Lagos State">Lagos State</option>
-                        <option value="Katsina State">Katsina State</option>
-                        <option value="Jigawa State">Jigawa State</option>
-                        <option value="Other">Other States in Nigeria</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'Kalmar Sirri' : 'Password'} *
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="Min. 6 characters"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {language === 'ha' ? 'PIN mai Lamba 4' : '4-Digit Transaction PIN'} *
-                      </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        required
-                        value={regPin}
-                        onChange={(e) => setRegPin(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="1234"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono font-bold text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                      />
-                    </div>
-                  </div>
-
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                      {language === 'ha' ? 'Lambar Gayyata (Zabi ne)' : 'Referral Code (Optional)'}
+                      {language === 'ha' ? 'Sunan Mai Amfani (Username)' : 'Username'} *
                     </label>
-                    <input
-                      type="text"
-                      value={regReferral}
-                      onChange={(e) => setRegReferral(e.target.value.toUpperCase())}
-                      placeholder="e.g. 3PLEA-8841"
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="pt-1">
-                    <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-600 dark:text-slate-400">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <AtSign className="w-4 h-4" />
+                      </div>
                       <input
-                        type="checkbox"
-                        checked={regTerms}
-                        onChange={(e) => setRegTerms(e.target.checked)}
-                        className="mt-0.5 rounded text-emerald-500 focus:ring-emerald-400"
+                        type="text"
+                        required
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                        placeholder="e.g. sanihotoro"
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
-                      <span>
-                        {language === 'ha'
-                          ? 'Na amince da sharuddan tsaro da dokokin bayanan sirri na NDPA 2023 da ka\'idojin CBN.'
-                          : 'I accept 3PLE A DATA terms of service and Nigerian Data Protection Act (NDPA 2023) privacy regulations.'}
-                      </span>
-                    </label>
+                    </div>
                   </div>
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-3"
-                  >
-                    {loading ? (
-                      <RotateCcw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    <span>
-                      {language === 'ha' ? 'Kammala Rijista & Karɓi ₦2,500' : 'Register Account & Claim ₦2,500'}
-                    </span>
-                  </button>
-                </form>
-              )}
-
-              {/* 1.B: CUSTOMER SIGN IN */}
-              {customerAuthMode === 'signin' && (
-                <form onSubmit={handleCustomerSignIn} className="space-y-4">
+                {/* Email & Phone with Carrier Detection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      {language === 'ha' ? 'Imel ko Lambar Waya' : 'Registered Email or Phone'} *
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      {language === 'ha' ? 'Imel' : 'Email Address'} *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
-                        type="text"
+                        type="email"
                         required
-                        value={custIdentifier}
-                        onChange={(e) => setCustIdentifier(e.target.value)}
-                        placeholder="musa.sulaiman@gmail.com or 08023345566"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="user@gmail.com"
                         className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        {language === 'ha' ? 'Kalmar Sirri' : 'Password'} *
+                        {language === 'ha' ? 'Lambar Waya' : 'Phone Number'} *
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotModal(true)}
-                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                      >
-                        {language === 'ha' ? 'Manta Kalmar Sirri?' : 'Forgot Password?'}
-                      </button>
+                      {regCarrier && (
+                        <span className={`text-[10px] px-2 py-0.2 rounded font-bold uppercase ${regCarrier.color}`}>
+                          {regCarrier.badge}
+                        </span>
+                      )}
                     </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input
-                        type={showCustPassword ? 'text' : 'password'}
-                        required
-                        value={custPassword}
-                        onChange={(e) => setCustPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCustPassword(!showCustPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                      >
-                        {showCustPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="rounded text-emerald-500 focus:ring-emerald-400"
-                      />
-                      <span>{language === 'ha' ? 'Tuna da ni a wannan na\'ura' : 'Remember this trusted device'}</span>
-                    </label>
-
-                    <span className="text-[11px] text-slate-400">SSL 256-Bit</span>
-                  </div>
-
-                  <div className="pt-2 space-y-3">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-                    >
-                      {loading ? <RotateCcw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                      <span>{language === 'ha' ? 'Shiga Asusu' : 'Sign In to Customer Account'}</span>
-                    </button>
-
-                    {isHardwareBiometricAvailable() && (
-                      <button
-                        type="button"
-                        onClick={handleBiometricQuickUnlock}
-                        disabled={loading}
-                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
-                      >
-                        <ScanFace className="w-4 h-4 text-emerald-500" />
-                        <span>{language === 'ha' ? 'Shiga da FaceID / Yatsa' : 'Quick Unlock with Biometrics'}</span>
-                      </button>
-                    )}
-                  </div>
-                </form>
-              )}
-
-              {/* 1.C: CUSTOMER QUICK PHONE + PIN */}
-              {customerAuthMode === 'phone_pin' && (
-                <form onSubmit={handleCustomerPhonePin} className="space-y-4">
-                  <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
-                    <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
-                      {language === 'ha' ? 'Shiga Nan Take da Lambar PIN' : 'Express Phone & PIN Authorization'}
-                    </span>
-                    {language === 'ha'
-                      ? 'Tabbatar da asusunka cikin sauƙi ta hanyar shigar da lambar waya da lambar sirri ta PIN mai lamba 4.'
-                      : 'Instant authentication using your registered Nigerian telephone number and 4-digit PIN.'}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                      {language === 'ha' ? 'Lambar Waya' : 'Registered Phone Number'} *
-                    </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Phone className="w-4 h-4" />
@@ -1053,136 +1008,310 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       <input
                         type="tel"
                         required
-                        value={pinPhone}
-                        onChange={(e) => setPinPhone(e.target.value)}
-                        placeholder="0802 334 5566"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        placeholder="0803 123 4567"
                         className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Account Type & State */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      {language === 'ha' ? 'Nau\'in Asusu' : 'Customer Account Type'} *
+                    </label>
+                    <select
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value as 'customer' | 'retailer' | 'agent')}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none"
+                    >
+                      <option value="customer">Personal Customer (VTU, Bills & Domestic Flights)</option>
+                      <option value="retailer">Reseller / Sub-Agent (Wholesale Telecom Reseller)</option>
+                      <option value="agent">POS Agent (Merchant Banking & Remittance)</option>
+                    </select>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                      {language === 'ha' ? 'PIN mai Lamba 4' : '4-Digit Transaction PIN'} *
+                      {language === 'ha' ? 'Jiha' : 'State of Residence'} *
+                    </label>
+                    <select
+                      value={regState}
+                      onChange={(e) => setRegState(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none"
+                    >
+                      <option value="Kano State">Kano State (Tarauni / City)</option>
+                      <option value="Abuja FCT">Abuja FCT</option>
+                      <option value="Kaduna State">Kaduna State</option>
+                      <option value="Lagos State">Lagos State</option>
+                      <option value="Katsina State">Katsina State</option>
+                      <option value="Jigawa State">Jigawa State</option>
+                      <option value="Sokoto State">Sokoto State</option>
+                      <option value="Bauchi State">Bauchi State</option>
+                      <option value="Other">Other States in Nigeria</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Password & Confirm Password (BilalSadaSub standard) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      {language === 'ha' ? 'Kalmar Sirri' : 'Password'} *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <KeyRound className="w-4 h-4" />
+                        <Lock className="w-4 h-4" />
                       </div>
                       <input
-                        type="password"
-                        maxLength={4}
+                        type={showRegPassword ? 'text' : 'password'}
                         required
-                        value={pinCode}
-                        onChange={(e) => setPinCode(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="••••"
-                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-mono font-bold tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Min. 6 characters"
+                        className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      >
+                        {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                  >
-                    {loading ? <RotateCcw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                    <span>{language === 'ha' ? 'Tabbatar da PIN & Shiga' : 'Verify PIN & Enter Dashboard'}</span>
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Right: Fast Customer Profiles & Trust */}
-            <div className="lg:col-span-5 space-y-5">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                      {language === 'ha' ? 'Asusun Gwaji na Abokin Ciniki' : 'Quick Customer Profiles'}
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">1-Click</span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3.5">
-                  {language === 'ha'
-                    ? 'Danna asusu na ƙasa don shiga kai tsaye a matsayin abokin ciniki mai asusun kudi:'
-                    : 'Click any registered customer profile below for immediate simulated login:'}
-                </p>
-
-                <div className="space-y-2.5">
-                  {customerDemoProfiles.map((account) => {
-                    const isCurrent = currentUser?.email.toLowerCase() === account.email.toLowerCase();
-                    const IconComponent = account.icon;
-
-                    return (
-                      <button
-                        key={account.email}
-                        type="button"
-                        onClick={() => handleSelectDemoUser(account as any)}
-                        className={`w-full p-3 rounded-2xl border text-left transition-all flex items-start justify-between gap-3 ${
-                          isCurrent
-                            ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 shadow-xs ring-1 ring-emerald-400/50'
-                            : 'bg-slate-50/70 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-700/80'
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        {language === 'ha' ? 'Tabbatar da Kalmar Sirri' : 'Confirm Password'} *
+                      </label>
+                      {regConfirmPassword && (
+                        <span
+                          className={`text-[10px] font-bold ${
+                            regPassword === regConfirmPassword ? 'text-emerald-500' : 'text-rose-500'
+                          }`}
+                        >
+                          {regPassword === regConfirmPassword
+                            ? (language === 'ha' ? 'Sun dace ✓' : 'Matches ✓')
+                            : (language === 'ha' ? 'Ba su dace ba' : 'Mismatch')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showRegConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        className={`w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 ${
+                          regConfirmPassword && regPassword !== regConfirmPassword
+                            ? 'border-rose-400 focus:ring-rose-500/30'
+                            : 'border-slate-200 dark:border-slate-700 focus:ring-emerald-500/30'
                         }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                       >
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-slate-800 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 border border-slate-800">
-                            <IconComponent className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                {account.name}
-                              </span>
-                              {isCurrent && (
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                              )}
-                            </div>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border inline-block mt-0.5 ${account.badgeColor}`}>
-                              {account.roleTitle}
-                            </span>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
-                              {account.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <span className="text-[11px] font-mono font-bold text-slate-900 dark:text-slate-100 block">
-                            ₦{account.balance.toLocaleString()}
-                          </span>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                            {isCurrent ? 'Active' : 'Log In →'}
-                          </span>
-                        </div>
+                        {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
-                    );
-                  })}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Customer Guarantees Card */}
-              <div className="p-5 bg-slate-50 dark:bg-slate-900/60 rounded-3xl border border-slate-200 dark:border-slate-800 text-xs space-y-2.5">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>{language === 'ha' ? 'Tsaron Asusun Abokan Ciniki' : 'Protected Customer Infrastructure'}</span>
+                {/* 4-Digit Transaction PIN & Referral Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      {language === 'ha' ? 'PIN mai Lamba 4 na Biyan Kuɗi' : '4-Digit Transaction PIN'} *
+                    </label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      required
+                      value={regPin}
+                      onChange={(e) => setRegPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="1234"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono font-bold text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      {language === 'ha' ? 'Lambar/Sunan Gayyata (Zabi ne)' : 'Referral Username / Code (Optional)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={regReferral}
+                      onChange={(e) => setRegReferral(e.target.value.toUpperCase())}
+                      placeholder="e.g. 3PLEA or sanihotoro"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>Instant wallet funding via Monnify & Paystack clearing channels.</span>
+
+                <div className="pt-1">
+                  <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={regTerms}
+                      onChange={(e) => setRegTerms(e.target.checked)}
+                      className="mt-0.5 rounded text-emerald-500 focus:ring-emerald-400"
+                    />
+                    <span>
+                      {language === 'ha'
+                        ? 'Na amince da sharuddan tsaro da dokokin bayanan sirri na NDPA 2023 da ka\'idojin CBN.'
+                        : 'I accept 3PLE A DATA terms of service and Nigerian Data Protection Act (NDPA 2023) privacy regulations.'}
+                    </span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-3"
+                >
+                  {loading ? (
+                    <RotateCcw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>
+                    {language === 'ha' ? 'Kammala Rijista & Karɓi ₦2,500' : 'Register Account & Claim ₦2,500 Bonus'}
+                  </span>
+                </button>
+
+                <div className="text-center pt-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {language === 'ha' ? 'Kina/Kana da asusu?' : 'Already have an account?'}{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomerAuthMode('signin');
+                        setFeedback(null);
+                      }}
+                      className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    >
+                      {language === 'ha' ? 'Shiga Asusu' : 'Sign In Here'}
+                    </button>
+                  </p>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 3: CUSTOMER QUICK PHONE + PIN */}
+            {customerAuthMode === 'phone_pin' && (
+              <form onSubmit={handleCustomerPhonePin} className="space-y-4">
+                <div className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
+                  <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
+                    {language === 'ha' ? 'Shiga Nan Take da Lambar PIN' : 'Express Phone & PIN Authorization'}
+                  </span>
+                  {language === 'ha'
+                    ? 'Tabbatar da asusunka cikin sauƙi ta hanyar shigar da lambar waya da lambar sirri ta PIN mai lamba 4.'
+                    : 'Instant authentication using your registered Nigerian telephone number and 4-digit PIN.'}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      {language === 'ha' ? 'Lambar Waya' : 'Registered Phone Number'} *
+                    </label>
+                    {pinCarrier && (
+                      <span className={`text-[10px] px-2 py-0.2 rounded font-bold uppercase ${pinCarrier.color}`}>
+                        {pinCarrier.badge}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>Automated domestic flight booking & KEDCO power token generation within 2 seconds.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>RC 9746103 CAC certified digital stored-value services in Kano, Nigeria.</span>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={pinPhone}
+                      onChange={(e) => setPinPhone(e.target.value)}
+                      placeholder="0802 334 5566"
+                      className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    {language === 'ha' ? 'PIN mai Lamba 4' : '4-Digit Transaction PIN'} *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <KeyRound className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      required
+                      value={pinCode}
+                      onChange={(e) => setPinCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="••••"
+                      className="w-full pl-10 pr-3.5 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-mono font-bold tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {loading ? <RotateCcw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  <span>{language === 'ha' ? 'Tabbatar da PIN & Shiga' : 'Verify PIN & Enter Dashboard'}</span>
+                </button>
+              </form>
+            )}
+
+            {/* BilalSadaSub Standard: Direct WhatsApp Help & App Badges */}
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* WhatsApp Support Button */}
+              <a
+                href="https://wa.me/2348031234567?text=Hello%203PLE%20A%20DATA%20Support,%20I%20need%20assistance%20with%20my%20account"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30 text-xs font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>{language === 'ha' ? 'Taimako a WhatsApp (0803 123 4567)' : 'WhatsApp Support (0803 123 4567)'}</span>
+                <ExternalLink className="w-3 h-3 opacity-70" />
+              </a>
+
+              {/* App Download Badges (Android & iOS) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {language === 'ha' ? 'Sauke Manhaja:' : 'Get the App:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedback({
+                      type: 'success',
+                      message:
+                        language === 'ha'
+                          ? 'Ana aiki da manhajar Android (APK) da PWA Web App don saukewa kai tsaye.'
+                          : '3PLE A DATA Android APK and Progressive Web App (PWA) available for instant install.',
+                    });
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Android & iOS</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1217,6 +1346,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     Executive Vault
                   </span>
                 </div>
+
                 {/* Header Badge */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
                   <div className="flex items-center gap-3">
@@ -1250,7 +1380,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <form onSubmit={handleSuperAdminSignIn} className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                      {language === 'ha' ? 'Imel ɗin Super Admin' : 'Super Admin Official Email'} *
+                      {language === 'ha' ? 'Imel ko Sunan Super Admin' : 'Super Admin Official Email or Username'} *
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -1268,18 +1398,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        {language === 'ha' ? 'Kalmar Sirri ta Darakta' : 'Master Password'} *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setAdminPassword('3PLEA_ROOT_2026!')}
-                        className="text-[11px] font-mono text-amber-400 hover:underline"
-                      >
-                        {language === 'ha' ? 'Cika ta atomatik' : 'Autofill Master Pass'}
-                      </button>
-                    </div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                      {language === 'ha' ? 'Kalmar Sirri ta Darakta' : 'Master Password'} *
+                    </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <Lock className="w-4 h-4 text-amber-400" />
@@ -1323,7 +1444,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2 space-y-3">
+                  <div className="pt-2">
                     <button
                       type="submit"
                       disabled={loading}
@@ -1340,21 +1461,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                           : 'Authenticate & Enter Super Admin Dashboard'}
                       </span>
                     </button>
-
-                    {/* 1-Click Fast Super Admin Demo Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleSelectDemoUser(superAdminDemoProfile)}
-                      disabled={loading}
-                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>
-                        {language === 'ha'
-                          ? 'Danna don Shiga kai tsaye a matsayin Aliyu Mohammed (Super Admin)'
-                          : '1-Click Fast Super Admin Login (Aliyu Mohammed Kano)'}
-                      </span>
-                    </button>
                   </div>
                 </form>
               </div>
@@ -1363,7 +1469,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         )}
 
         {/* Global Footer Notes with Discreet Admin Link */}
-        <div className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-slate-500 dark:text-slate-400">
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-xs text-slate-500 dark:text-slate-400">
           <div>
             <p className="font-semibold text-slate-700 dark:text-slate-300">
               © 2026 3PLE A DATA (RC 9746103) · CAC Registered Corporate Entity
@@ -1416,14 +1522,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <div className="space-y-3">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {language === 'ha'
-                    ? 'Shigar da lambar waya ko imel ɗin da kayi rijista da shi don tura maka lambar tabbatarwa (OTP).'
-                    : 'Enter your registered Nigerian phone number or email address. We will dispatch a 6-digit OTP code.'}
+                    ? 'Shigar da lambar waya, username ko imel ɗin da kayi rijista da shi don tura maka lambar tabbatarwa (OTP).'
+                    : 'Enter your registered phone number, username, or email address. We will dispatch a 6-digit OTP code.'}
                 </p>
                 <input
                   type="text"
                   value={forgotTarget}
                   onChange={(e) => setForgotTarget(e.target.value)}
-                  placeholder="0802 334 5566 or user@gmail.com"
+                  placeholder="0802 334 5566, username or user@gmail.com"
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none"
                 />
                 <button
